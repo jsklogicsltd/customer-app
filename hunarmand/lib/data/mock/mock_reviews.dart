@@ -1,0 +1,48 @@
+import '../../models/review.dart';
+
+final List<ReviewModel> mockReviewsData = [
+  ReviewModel.fromMap({
+    'id': 'rev001',
+    'vendorId': 'v001',
+    'orderId': 'ORD-1048',
+    'customerName': 'Ahmed K.',
+    'customerAvatar': 'https://i.pravatar.cc/150?img=33',
+    'rating': 5,
+    'comment': 'Excellent quality, fast delivery. The phulkari work is stunning. Will order again!',
+    'date': '2026-03-07',
+    'weeksAgo': '2 weeks ago',
+  }),
+  ReviewModel.fromMap({
+    'id': 'rev002',
+    'vendorId': 'v001',
+    'orderId': 'ORD-1030',
+    'customerName': 'Sara M.',
+    'customerAvatar': 'https://i.pravatar.cc/150?img=47',
+    'rating': 4,
+    'comment': 'Good work but slight delay in delivery. Quality is very good overall.',
+    'date': '2026-02-10',
+    'weeksAgo': '1 month ago',
+  }),
+  ReviewModel.fromMap({
+    'id': 'rev003',
+    'vendorId': 'v001',
+    'orderId': 'ORD-1025',
+    'customerName': 'Zara H.',
+    'customerAvatar': 'https://i.pravatar.cc/150?img=41',
+    'rating': 5,
+    'comment': 'Beautiful embroidery, exactly as shown in photos. Highly recommended!',
+    'date': '2026-01-28',
+    'weeksAgo': '2 months ago',
+  }),
+  ReviewModel.fromMap({
+    'id': 'rev004',
+    'vendorId': 'v003',
+    'orderId': 'ORD-1020',
+    'customerName': 'Bilal A.',
+    'customerAvatar': 'https://i.pravatar.cc/150?img=15',
+    'rating': 5,
+    'comment': 'Top quality leather bags! The craftsmanship is exceptional. Highly recommend for export.',
+    'date': '2026-01-15',
+    'weeksAgo': '3 months ago',
+  }),
+];
