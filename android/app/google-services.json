@@ -1,0 +1,126 @@
+{
+  "project_info": {
+    "project_number": "926512925301",
+    "project_id": "karsaazi-cf8a4",
+    "storage_bucket": "karsaazi-cf8a4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:926512925301:android:1a4e417f68b752fb0c863c",
+        "android_client_info": {
+          "package_name": "com.hunarmand.hunarmand"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "926512925301-pbeciiced6jo2rlqogf130o3206v2r0p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-IuxlqrmVk27WJM8EpsVCpnL15SnYlLU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "926512925301-pbeciiced6jo2rlqogf130o3206v2r0p.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "926512925301-b3snmi4rgg9h5in5pj5nu466n72olg4k.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.karsaazicustomer.app.karsaaziCustomerApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:926512925301:android:0c25d57299d874070c863c",
+        "android_client_info": {
+          "package_name": "com.hunarmand.hunarmand_vendor"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "926512925301-fvv0g68647t58a5l5rupoium721r2jm4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hunarmand.hunarmand_vendor",
+            "certificate_hash": "9d199c509d9fa339bc779b86371e2d92c505aa57"
+          }
+        },
+        {
+          "client_id": "926512925301-pbeciiced6jo2rlqogf130o3206v2r0p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-IuxlqrmVk27WJM8EpsVCpnL15SnYlLU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "926512925301-pbeciiced6jo2rlqogf130o3206v2r0p.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "926512925301-b3snmi4rgg9h5in5pj5nu466n72olg4k.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.karsaazicustomer.app.karsaaziCustomerApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:926512925301:android:9db24039a8882b830c863c",
+        "android_client_info": {
+          "package_name": "com.karsaazi_customer.app.karsaazi_customer_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "926512925301-pbeciiced6jo2rlqogf130o3206v2r0p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD-IuxlqrmVk27WJM8EpsVCpnL15SnYlLU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "926512925301-pbeciiced6jo2rlqogf130o3206v2r0p.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "926512925301-b3snmi4rgg9h5in5pj5nu466n72olg4k.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.karsaazicustomer.app.karsaaziCustomerApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

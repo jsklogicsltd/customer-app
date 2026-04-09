@@ -1,0 +1,39 @@
+name: hunarmand
+description: "HUNARMAND — Pakistan Ka Hunar, Duniya Tak. A B2B/B2C marketplace for authentic Pakistani handmade products."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2
+  go_router: ^14.0.0
+  google_fonts: ^6.2.1
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  smooth_page_indicator: ^1.1.0
+  flutter_staggered_animations: ^1.1.1
+  intl: ^0.19.0
+  flutter_rating_bar: ^4.0.1
+  share_plus: ^10.0.0
+  url_launcher: ^6.3.0
+  animations: ^2.0.11
+  flutter_svg: ^2.0.10+1
+  image_picker: ^1.1.2
+  cupertino_icons: ^1.0.8
+  firebase_core: ^3.1.0
+  firebase_auth: ^5.1.0
+  cloud_firestore: ^5.0.2
+  firebase_storage: ^12.0.1
+  firebase_messaging: ^15.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

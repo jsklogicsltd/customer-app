@@ -1,0 +1,26 @@
+﻿Analyzing karsaazi Custmer...                                   
+
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\custom_request\quote_accept_confirm_screen.dart:132:21 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\custom_request\quote_accept_confirm_screen.dart:133:21 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\custom_request\quote_accept_confirm_screen.dart:141:21 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\custom_request\quote_accept_confirm_screen.dart:142:21 - deprecated_member_use
+   info - Don't invoke 'print' in production code - run_linter.dart:4:3 - avoid_print
+   info - Don't invoke 'print' in production code - run_linter.dart:7:3 - avoid_print
+
+flutter : 6 issues found. 
+(ran in 2.9s)
+At line:1 char:1
++ flutter analyze --no-pub 
+> analyze_output_v3.txt 
+2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~
+    + CategoryInfo         
+     : NotSpecified: (6 i  
+  ssues found. (ran in 2   
+ .9s):String) [], Remot    
+eException
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 

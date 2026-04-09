@@ -1,0 +1,32 @@
+﻿Analyzing karsaazi Custmer...                                   
+
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\auth\profile_setup_screen.dart:146:17 - use_build_context_synchronously
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\custom_request\quote_accept_confirm_screen.dart:132:21 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\custom_request\quote_accept_confirm_screen.dart:133:21 - deprecated_member_use
+   info - 'groupValue' is deprecated and shouldn't be used. Use a RadioGroup ancestor to manage group value instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\custom_request\quote_accept_confirm_screen.dart:141:21 - deprecated_member_use
+   info - 'onChanged' is deprecated and shouldn't be used. Use RadioGroup to handle value change instead. This feature was deprecated after v3.32.0-0.0.pre - lib\screens\custom_request\quote_accept_confirm_screen.dart:142:21 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\orders\place_order_screen.dart:319:47 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\orders\place_order_screen.dart:335:25 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\profile\edit_profile_screen.dart:151:38 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\profile\edit_profile_screen.dart:163:17 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\screens\profile\edit_profile_screen.dart:164:38 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - run_linter.dart:4:3 - avoid_print
+   info - Don't invoke 'print' in production code - run_linter.dart:7:3 - avoid_print
+
+flutter : 12 issues found. 
+(ran in 3.7s)
+At line:1 char:1
++ flutter analyze --no-pub 
+> analyze_output_v2.txt 
+2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~
+    + CategoryInfo         
+     : NotSpecified: (12   
+  issues found. (ran in    
+ 3.7s):String) [], Remo    
+teException
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
