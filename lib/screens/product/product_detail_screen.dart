@@ -68,14 +68,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     UserProvider userProvider,
   ) {
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           // Image gallery as app bar
           SliverAppBar(
             expandedHeight: 320,
             pinned: true,
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
             leading: GestureDetector(
               onTap: () => context.pop(),
               child: Container(
@@ -138,7 +138,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               children: [
                 // Product Info Card
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -190,7 +190,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                 // Description
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,7 +229,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 // Vendor Card
                 if (vendor != null)
                   Container(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,7 +288,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                 // Reviews
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +325,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       bottomNavigationBar: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           boxShadow: [BoxShadow(color: Colors.black.withAlpha(20), blurRadius: 10, offset: const Offset(0, -2))],
         ),
         child: Row(
@@ -360,14 +360,14 @@ class _DetailBox extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: AppColors.bgLight,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           children: [
             Text(label, style: AppTypography.caption.copyWith(color: AppColors.textMedium)),
             const SizedBox(height: 2),
-            Text(value, style: AppTypography.small.copyWith(fontWeight: FontWeight.w600, color: AppColors.textDark), textAlign: TextAlign.center),
+            Text(value, style: AppTypography.small.copyWith(fontWeight: FontWeight.w600), textAlign: TextAlign.center),
           ],
         ),
       ),

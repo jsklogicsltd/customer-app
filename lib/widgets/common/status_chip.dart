@@ -25,10 +25,16 @@ class StatusChip extends StatelessWidget {
       case 'in-production':
         return AppColors.statusProduction;
       case 'ready-to-ship':
+      case 'ready':
+      case 'ready-to-pickup':
         return Colors.indigo;
       case 'dispatched':
+      case 'shipped':
+      case 'out-for-delivery':
+      case 'out_for_delivery':
         return AppColors.statusDispatched;
       case 'delivered':
+      case 'picked-up':
         return AppColors.statusActive;
       case 'cancelled':
       case 'quote-declined':
@@ -58,7 +64,16 @@ class StatusChip extends StatelessWidget {
       case 'in-production':
         return 'In Production';
       case 'ready-to-ship':
+      case 'ready':
+      case 'ready-to-pickup':
         return 'Ready to Ship';
+      case 'shipped':
+        return 'Shipped';
+      case 'out-for-delivery':
+      case 'out_for_delivery':
+        return 'Out for Delivery';
+      case 'picked-up':
+        return 'Picked Up';
       default:
         return status.split('-').map((s) {
           if (s.isEmpty) return '';

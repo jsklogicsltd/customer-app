@@ -5,6 +5,7 @@ class AppNotification {
   final String title;
   final String body;
   final String timeAgo;
+  final dynamic timestamp;
   bool read;
   final String actionRoute;
 
@@ -15,20 +16,22 @@ class AppNotification {
     required this.title,
     required this.body,
     required this.timeAgo,
+    this.timestamp,
     required this.read,
     required this.actionRoute,
   });
 
   factory AppNotification.fromMap(Map<String, dynamic> map) {
     return AppNotification(
-      id: map['id'],
-      type: map['type'],
-      icon: map['icon'],
-      title: map['title'],
-      body: map['body'],
-      timeAgo: map['timeAgo'],
-      read: map['read'],
-      actionRoute: map['actionRoute'],
+      id: map['id'] ?? '',
+      type: map['type'] ?? 'info',
+      icon: map['icon'] ?? '🔔',
+      title: map['title'] ?? '',
+      body: map['body'] ?? '',
+      timeAgo: map['timeAgo'] ?? 'Just now',
+      timestamp: map['timestamp'] ?? map['createdAt'],
+      read: map['read'] ?? false,
+      actionRoute: map['actionRoute'] ?? '',
     );
   }
 }

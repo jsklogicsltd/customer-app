@@ -24,12 +24,12 @@ class UserAddress {
 class AppUser {
   final String id;
   String name;
-  final String phone;
+  String phone;
   String email;
   String buyerType;
   String province;
   String city;
-  String avatar;
+  String profileImageUrl;
   final bool verified;
   List<UserAddress> addresses;
   List<String> savedProducts;
@@ -50,7 +50,7 @@ class AppUser {
     required this.buyerType,
     required this.province,
     required this.city,
-    required this.avatar,
+    required this.profileImageUrl,
     required this.verified,
     required this.addresses,
     required this.savedProducts,
@@ -73,7 +73,7 @@ class AppUser {
       buyerType: map['buyerType'] ?? 'individual',
       province: map['province'] ?? '',
       city: map['city'] ?? '',
-      avatar: map['avatar'] ?? '',
+      profileImageUrl: map['profileImageUrl'] ?? map['avatar'] ?? '',
       verified: map['verified'] ?? false,
       addresses: (map['addresses'] as List? ?? [])
           .map((a) => UserAddress.fromMap(a))
@@ -88,5 +88,34 @@ class AppUser {
       fcmToken: map['fcmToken'],
       profileSetupComplete: map['profileSetupComplete'] ?? false,
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'phone': phone,
+      'email': email,
+      'buyerType': buyerType,
+      'province': province,
+      'city': city,
+      'profileImageUrl': profileImageUrl,
+      'verified': verified,
+      'addresses': addresses.map((a) => {
+        'id': a.id,
+        'label': a.label,
+        'address': a.address,
+        'isDefault': a.isDefault,
+      }).toList(),
+      'savedProducts': savedProducts,
+      'savedVendors': savedVendors,
+      'totalOrders': totalOrders,
+      'totalReviews': totalReviews,
+      'language': language,
+      'currency': currency,
+      'notifications': notifications,
+      'fcmToken': fcmToken,
+      'profileSetupComplete': profileSetupComplete,
+    };
   }
 }

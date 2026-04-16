@@ -43,17 +43,11 @@ class UserProvider extends ChangeNotifier {
 
       // If we already have this user and we are NOT currently loading, do nothing
       if (_user != null && _user!.id == user.uid && !_isLoading) {
-         debugPrint('UserProvider: User ${user.uid} already active, skipping.');
+         debugPrint('UserProvider: User ${user.uid} already active, skipping listener restart.');
          return;
       }
 
-      // If we are ALREADY loading for this user, don't start again
-      if (_isLoading && _error == null) {
-        debugPrint('UserProvider: Already loading, ignoring duplicate call.');
-        return;
-      }
-
-      debugPrint('UserProvider: Fetching profile for: ${user.uid}');
+      debugPrint('UserProvider: Setting up profile listener for: ${user.uid}');
       _userSub?.cancel();
       _loadTimeout?.cancel();
 
@@ -61,8 +55,8 @@ class UserProvider extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // Absolute safety: if nothing happens in 7 seconds, force stop loading
-      _loadTimeout = Timer(const Duration(seconds: 7), () {
+      // Absolute safety: if nothing happens in 10 seconds, force stop loading
+      _loadTimeout = Timer(const Duration(seconds: 10), () {
         if (_isLoading) {
           debugPrint('UserProvider: CRITICAL TIMEOUT for ${user.uid}');
           _isLoading = false;
@@ -78,10 +72,12 @@ class UserProvider extends ChangeNotifier {
           if (snap.exists && snap.data() != null) {
             _user = AppUser.fromMap(snap.data()!);
             _error = null;
+            debugPrint('UserProvider: Profile loaded for ${_user?.name}');
           } else {
             _user = null;
-            _error = "Profile document missing or permission denied.";
-            debugPrint('UserProvider: WARNING!! Document missing or PERMISSION_DENIED for ${user.uid}');
+            // Removed specific error string to allow "isAuthOnly" logic to trigger for redirects
+            _error = "Profile not found in database."; 
+            debugPrint('UserProvider: WARNING!! Document missing for ${user.uid}');
           }
         } catch (e) {
           _error = "Data parsing error: $e";
@@ -149,6 +145,7 @@ class UserProvider extends ChangeNotifier {
           'province': 'Federal',
           'city': 'Islamabad',
           'avatar': 'https://i.pravatar.cc/150?u=${credential.user!.uid}',
+          'profileImageUrl': 'https://i.pravatar.cc/150?u=${credential.user!.uid}',
           'verified': false,
           'addresses': [],
           'savedProducts': [],
@@ -242,20 +239,24 @@ class UserProvider extends ChangeNotifier {
   Future<void> updateProfile({
     String? name,
     String? email,
+    String? phone,
     String? buyerType,
     String? province,
     String? city,
+    String? profileImageUrl,
     bool? profileSetupComplete,
   }) async {
     final uid = _auth.currentUser?.uid;
-    if (uid == null) throw 'Not authenticated';
+    if (uid == null) return;
     
     Map<String, dynamic> updates = {};
     if (name != null) updates['name'] = name;
     if (email != null) updates['email'] = email;
+    if (phone != null) updates['phone'] = phone;
     if (buyerType != null) updates['buyerType'] = buyerType;
     if (province != null) updates['province'] = province;
     if (city != null) updates['city'] = city;
+    if (profileImageUrl != null) updates['profileImageUrl'] = profileImageUrl;
     if (profileSetupComplete != null) updates['profileSetupComplete'] = profileSetupComplete;
 
     if (updates.isNotEmpty) {
@@ -274,7 +275,7 @@ class UserProvider extends ChangeNotifier {
           'buyerType': buyerType ?? 'individual',
           'province': province ?? '',
           'city': city ?? '',
-          'avatar': 'https://ui-avatars.com/api/?name=${(name ?? "User").replaceAll(' ', '+')}',
+          'profileImageUrl': profileImageUrl ?? _user?.profileImageUrl ?? 'https://ui-avatars.com/api/?name=${(name ?? "User").replaceAll(' ', '+')}',
           'verified': false,
           'savedProducts': [],
           'savedVendors': [],
@@ -287,6 +288,22 @@ class UserProvider extends ChangeNotifier {
           'addresses': [],
         };
         await docRef.set(newUser);
+      }
+
+      // Optimistic update: Update local user object immediately to prevent navigation race conditions
+      if (_user != null) {
+        final data = _user!.toMap();
+        updates.forEach((key, value) => data[key] = value);
+        _user = AppUser.fromMap(data);
+        debugPrint('UserProvider: Optimistic update applied for ${user?.id}');
+        notifyListeners();
+      } else {
+        // If _user was null, we need to fetch it once to be sure state is synced
+        final freshSnap = await docRef.get();
+        if (freshSnap.exists && freshSnap.data() != null) {
+          _user = AppUser.fromMap(freshSnap.data()!);
+          notifyListeners();
+        }
       }
     }
   }

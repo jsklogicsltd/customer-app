@@ -52,14 +52,18 @@ class CustomRequestProvider extends ChangeNotifier {
         _requestsSub = _db
             .collection('customRequests')
             .where('customerId', isEqualTo: user.uid)
-            .orderBy('submittedDate', descending: true)
             .snapshots()
             .listen((snapshot) {
-          _requests = snapshot.docs.map((doc) {
+          final list = snapshot.docs.map((doc) {
             final data = doc.data();
             data['id'] = doc.id;
             return CustomRequest.fromMap(data);
           }).toList();
+
+          // Client-side sort: submittedDate is ISO8601 string
+          list.sort((a, b) => b.submittedDate.compareTo(a.submittedDate));
+          
+          _requests = list;
           _isLoading = false;
           notifyListeners();
         }, onError: (e) {

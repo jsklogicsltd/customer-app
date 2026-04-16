@@ -33,7 +33,7 @@ class VendorCard extends StatelessWidget {
         clipBehavior: Clip.hardEdge,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(ctx).cardColor,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [BoxShadow(color: Colors.black.withAlpha(12), blurRadius: 6, offset: const Offset(0, 2))],
         ),
@@ -52,7 +52,7 @@ class VendorCard extends StatelessWidget {
                 vendor.name,
                 maxLines: 2,
                 textAlign: TextAlign.center,
-                style: AppTypography.small.copyWith(fontWeight: FontWeight.w600, color: AppColors.textDark),
+                style: AppTypography.small.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 2),
               Text(vendor.city, style: AppTypography.caption),
@@ -75,7 +75,7 @@ class VendorCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(ctx).cardColor,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [BoxShadow(color: Colors.black.withAlpha(12), blurRadius: 6, offset: const Offset(0, 2))],
         ),

@@ -42,8 +42,9 @@ class QuoteModel {
     int parsedDays = 0;
     final dynamic rawDays = data['productionDays'] ?? data['timeline'];
     if (rawDays != null) {
-      if (rawDays is int) parsedDays = rawDays;
-      else if (rawDays is String) parsedDays = int.tryParse(rawDays) ?? 0;
+      if (rawDays is int) {
+        parsedDays = rawDays;
+      } else if (rawDays is String) parsedDays = int.tryParse(rawDays) ?? 0;
     }
 
     return QuoteModel(

@@ -126,7 +126,7 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
         ? const Center(child: CircularProgressIndicator())
         : Column(
         children: [
-          _ProgressBar(step: 1, total: 4),
+          const _ProgressBar(step: 1, total: 4),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -153,7 +153,7 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: _selectedCategory,
+                    initialValue: _selectedCategory,
                     hint: const Text('Select a category...'),
                     isExpanded: true,
                     decoration: const InputDecoration(
@@ -191,7 +191,7 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
-                        value: _selectedSubCategory,
+                        initialValue: _selectedSubCategory,
                         hint: const Text('Select sub-category...'),
                         isExpanded: true,
                         decoration: const InputDecoration(
@@ -241,7 +241,7 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
-                        value: _selectedProductType,
+                        initialValue: _selectedProductType,
                         hint: const Text('Select product type...'),
                         isExpanded: true,
                         decoration: const InputDecoration(

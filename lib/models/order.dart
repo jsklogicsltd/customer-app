@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OrderTimeline {
   final String step;
@@ -16,12 +15,13 @@ class OrderTimeline {
   });
 
   factory OrderTimeline.fromMap(Map<String, dynamic> map) {
+    String s(dynamic v, [String fb = '']) => v is String ? v : fb;
     return OrderTimeline(
-      step: map['step'] ?? '',
-      date: map['date'] ?? '',
-      note: map['note'] ?? '',
-      completed: map['completed'] ?? false,
-      current: map['current'] ?? false,
+      step:      s(map['step']),
+      date:      s(map['date']),   // date may be stored as Timestamp in some orders
+      note:      s(map['note']),
+      completed: map['completed'] == true || map['completed'] == 1,
+      current:   map['current']   == true || map['current']   == 1,
     );
   }
 }
@@ -46,14 +46,15 @@ class TrackingStep {
   });
 
   factory TrackingStep.fromMap(Map<String, dynamic> map) {
+    String s(dynamic v, [String fb = '']) => v is String ? v : fb;
     return TrackingStep(
-      step: map['step'] ?? '',
-      title: map['title'] ?? '',
-      description: map['description'] ?? '',
-      status: map['status'] ?? 'pending',
-      updatedAt: map['updatedAt'],
-      expectedDate: map['expectedDate'],
-      photos: List<String>.from(map['photos'] ?? []),
+      step:         s(map['step']),
+      title:        s(map['title']),
+      description:  s(map['description']),
+      status:       s(map['status'], 'pending'),
+      updatedAt:    map['updatedAt'],
+      expectedDate: map['expectedDate'] is String ? map['expectedDate'] as String : null,
+      photos: (map['photos'] as List? ?? []).whereType<String>().toList(),
     );
   }
 }
@@ -81,6 +82,18 @@ class OrderModel {
   final List<TrackingStep> trackingSteps;
   final int progressPercent;
   final String vendorName;
+  final bool isSplitOrder;
+  final double customerPrice;
+  final double vendorQuote;
+  final double commissionAmount;
+  final dynamic rfqDeadline;
+  final dynamic updatedAt;
+  
+  // Split Order Fields
+  final double splitTotalVendorCost;
+  final double splitTotalCommission;
+  final double splitCustomerFinalPrice;
+
 
   OrderModel({
     required this.id,
@@ -104,32 +117,129 @@ class OrderModel {
     this.trackingSteps = const [],
     this.progressPercent = 0,
     this.vendorName = '',
+    this.isSplitOrder = false,
+    this.customerPrice = 0,
+    this.vendorQuote = 0,
+    this.commissionAmount = 0,
+    this.rfqDeadline,
+    this.updatedAt,
+    this.splitTotalVendorCost = 0,
+    this.splitTotalCommission = 0,
+    this.splitCustomerFinalPrice = 0,
   });
 
   factory OrderModel.fromMap(Map<String, dynamic> d, String id) {
+    double toDouble(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is double) return v;
+      if (v is int) return v.toDouble();
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v) ?? 0.0;
+      return 0.0;
+    }
+
+    int toInt(dynamic v) {
+      if (v == null) return 0;
+      if (v is int) return v;
+      if (v is double) return v.toInt();
+      if (v is num) return v.toInt();
+      if (v is String) return int.tryParse(v) ?? 0;
+      return 0;
+    }
+
+    // Safely convert any field to String — handles Timestamps or other types
+    // that may have been stored instead of a plain string in Firestore.
+    String toStr(dynamic v, [String fallback = '']) {
+      if (v == null) return fallback;
+      if (v is String) return v;
+      return fallback; // swallow Timestamps, ints, etc. — return empty string
+    }
+
     return OrderModel(
       id:              id,
-      orderNumber:     d['orderNumber']     ?? '',
-      productName:     d['productName']     ?? d['productTitle'] ?? '',
-      mainPhotoUrl:    d['mainPhotoUrl']    ?? d['productImage'] ?? '',
-      productId:       d['productId']       ?? '',
-      vendorId:        d['vendorId']        ?? '',
-      customerId:      d['customerId']      ?? '',
-      quantity:        d['quantity']        ?? 0,
-      unitPrice:       (d['unitPrice']      ?? d['pricePerUnit'] ?? 0).toDouble(),
-      totalAmount:     (d['totalAmount']    ?? 0).toDouble(),
-      confirmedPrice:  (d['confirmedPrice'] ?? d['customerPrice'] ?? 0).toDouble(),
-      trackingNumber:  d['trackingNumber']  ?? '',
-      status:          d['status']          ?? '',
-      deliveryAddress: d['deliveryAddress'] ?? '',
-      expectedDelivery: d['expectedDelivery'] ?? '',
-      quoteId:         d['quoteId']         ?? '',
+      orderNumber:     toStr(d['orderNumber']),
+      productName:     toStr(d['productName'], toStr(d['productTitle'])),
+      mainPhotoUrl:    toStr(d['mainPhotoUrl'], toStr(d['productImage'])),
+      productId:       toStr(d['productId']),
+      vendorId:        toStr(d['vendorId']),
+      customerId:      toStr(d['customerId']),
+      quantity:        toInt(d['quantity']),
+      unitPrice:       toDouble(d['unitPrice'] ?? d['pricePerUnit']),
+      totalAmount:     toDouble(d['totalAmount']),
+      confirmedPrice:  toDouble(d['confirmedPrice'] ?? d['customerPrice']),
+      trackingNumber:  toStr(d['trackingNumber']),
+      status:          toStr(d['status']),
+      deliveryAddress: toStr(d['deliveryAddress']),
+      expectedDelivery: toStr(d['expectedDelivery']),
+      quoteId:         toStr(d['quoteId']),
       createdAt:       d['createdAt'],
-      vendorName:      d['vendorName']      ?? '',
-      progressPercent: d['progressPercent'] ?? 0,
+      vendorName:      toStr(d['vendorName']),
+      progressPercent: toInt(d['progressPercent']),
+      isSplitOrder:    d['isSplitOrder'] == true || d['isSplitOrder'] == 1 || d['isSplitOrder'] == 'true',
+      customerPrice:   toDouble(d['customerPrice']  ?? d['confirmedPrice']),
+      vendorQuote:     toDouble(d['vendorQuote']),
+      commissionAmount:toDouble(d['commissionAmount']),
+      rfqDeadline:     d['rfqDeadline'],
+      updatedAt:       d['updatedAt'],
+      splitTotalVendorCost: toDouble(d['splitTotalVendorCost']),
+      splitTotalCommission: toDouble(d['splitTotalCommission']),
+      splitCustomerFinalPrice: toDouble(d['splitCustomerFinalPrice'] ?? d['customerPrice']),
       timeline: (d['timeline'] as List?)
           ?.map((v) => OrderTimeline.fromMap(v))
           .toList() ?? [],
+      trackingSteps: (d['trackingSteps'] as List?)
+          ?.map((v) => TrackingStep.fromMap(v))
+          .toList() ?? [],
+    );
+  }
+}
+
+class OrderPartModel {
+  final String id;
+  final int partNumber;
+  final int quantity;
+  final String unit;
+  final String status;
+  final String trackingNumber;
+  final String courierName;
+  final dynamic deliveredAt;
+  final String vendorId;
+  final String vendorName;
+  final List<TrackingStep> trackingSteps;
+
+  OrderPartModel({
+    required this.id,
+    required this.partNumber,
+    required this.quantity,
+    this.unit = 'pcs',
+    required this.status,
+    this.trackingNumber = '',
+    this.courierName = '',
+    this.deliveredAt,
+    this.vendorId = '',
+    this.vendorName = '',
+    this.trackingSteps = const [],
+  });
+
+  factory OrderPartModel.fromFirestoreCustomer(Map<String, dynamic> d, String id) {
+    String s(dynamic v, [String fb = '']) => v is String ? v : fb;
+    int toInt(dynamic v) {
+      if (v is int) return v;
+      if (v is double) return v.toInt();
+      if (v is String) return int.tryParse(v) ?? 0;
+      return 0;
+    }
+    return OrderPartModel(
+      id: id,
+      partNumber: toInt(d['partNumber']),
+      quantity:   toInt(d['quantity']),
+      unit:           s(d['unit'], 'pcs'),
+      status:         s(d['status'], 'confirmed'),
+      trackingNumber: s(d['trackingNumber']),
+      courierName:    s(d['courierName']),
+      deliveredAt: d['deliveredAt'],
+      vendorId: '', // Masked for Customer App
+      vendorName:     s(d['vendorName']),
       trackingSteps: (d['trackingSteps'] as List?)
           ?.map((v) => TrackingStep.fromMap(v))
           .toList() ?? [],

@@ -32,7 +32,7 @@ class OrderList extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.bgLight,
+                  color: Theme.of(context).scaffoldBackgroundColor,
                   shape: BoxShape.circle,
                 ),
                 child: Icon(emptyIcon, size: 48, color: AppColors.textLight),
@@ -40,7 +40,7 @@ class OrderList extends StatelessWidget {
               const SizedBox(height: 20),
               Text(
                 emptyTitle,
-                style: AppTypography.h3.copyWith(color: AppColors.textDark),
+                style: AppTypography.h3,
                 textAlign: TextAlign.center,
               ),
               if (emptySubtitle != null) ...[

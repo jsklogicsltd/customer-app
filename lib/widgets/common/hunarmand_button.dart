@@ -49,12 +49,12 @@ class _HunarmandButtonState extends State<HunarmandButton>
     super.dispose();
   }
 
-  Color get _bgColor {
+  Color _getBgColor(BuildContext context) {
     switch (widget.type) {
       case ButtonType.gold:
         return AppColors.gold;
       case ButtonType.primary:
-        return AppColors.primaryGreen;
+        return Theme.of(context).colorScheme.primary;
       default:
         return Colors.transparent;
     }
@@ -119,7 +119,7 @@ class _HunarmandButtonState extends State<HunarmandButton>
       default:
         return ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: _bgColor,
+            backgroundColor: _getBgColor(context),
             foregroundColor: _textColor,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             padding: const EdgeInsets.symmetric(vertical: 14),

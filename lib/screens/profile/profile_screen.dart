@@ -55,51 +55,20 @@ class ProfileScreen extends StatelessWidget {
     }
 
     if (user == null) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('👤', style: TextStyle(fontSize: 64)),
-                const SizedBox(height: 24),
-                Text('Profile Not Found', style: AppTypography.h2),
-                const SizedBox(height: 12),
-                Text(
-                  'We couldn\'t find your profile information. This may happen if your account setup was not finalized.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(color: AppColors.textMedium),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: () => context.go('/profile-setup'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryGreen,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Complete Setup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () => userProvider.signOut(),
-                  child: const Text('Back to Login', style: TextStyle(color: AppColors.textLight)),
-                ),
-              ],
-            ),
-          ),
+          child: CircularProgressIndicator(color: AppColors.primaryGreen),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
             pinned: true,
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
             title: const Text('My Profile'),
             actions: [
               IconButton(
@@ -113,13 +82,13 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 // Profile header
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
                       Stack(
                         children: [
-                          CircleAvatar(radius: 44, backgroundImage: NetworkImage(user.avatar)),
+                          CircleAvatar(radius: 44, backgroundImage: NetworkImage(user.profileImageUrl)),
                           Positioned(
                             bottom: 0, right: 0,
                             child: Container(
@@ -153,7 +122,7 @@ class ProfileScreen extends StatelessWidget {
 
                 // Activity stats
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
@@ -181,7 +150,7 @@ class ProfileScreen extends StatelessWidget {
 
                 // Addresses
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -214,7 +183,7 @@ class ProfileScreen extends StatelessWidget {
 
                 // Settings
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -261,9 +230,8 @@ class ProfileScreen extends StatelessWidget {
 
                 const SizedBox(height: 8),
 
-                // Auth actions
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
@@ -365,7 +333,7 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).cardColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

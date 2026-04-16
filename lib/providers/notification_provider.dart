@@ -26,15 +26,22 @@ class NotificationProvider extends ChangeNotifier {
         _notifSub = _db
             .collection('notifications')
             .where('userId', isEqualTo: user.uid)
-            .orderBy('timestamp', descending: true)
             .snapshots()
             .listen((snapshot) {
-          _notifications = snapshot.docs.map((doc) {
+          final list = snapshot.docs.map((doc) {
             final data = doc.data();
             data['id'] = doc.id;
-            // Assuming timeAgo is derived or stored as a string for now
             return AppNotification.fromMap(data);
           }).toList();
+
+          // Client-side sort: timestamp descending
+          list.sort((a, b) {
+            final aTime = (a.timestamp as Timestamp?)?.toDate() ?? DateTime(2000);
+            final bTime = (b.timestamp as Timestamp?)?.toDate() ?? DateTime(2000);
+            return bTime.compareTo(aTime);
+          });
+
+          _notifications = list;
           _isLoading = false;
           notifyListeners();
         }, onError: (e) {

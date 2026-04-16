@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -12,7 +11,6 @@ import '../../models/product.dart';
 import '../../widgets/common/hunarmand_button.dart';
 import '../../widgets/common/cached_image.dart';
 import '../../models/user.dart';
-import '../../core/utils/formatters.dart';
 
 class PlaceOrderScreen extends StatefulWidget {
   final String productId;
@@ -35,7 +33,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
   @override
   void initState() {
     super.initState();
-    _productFuture = FirebaseFirestore.instance.collection('products').doc(widget.productId).get();
+    _productFuture = FirebaseFirestore.instance
+        .collection('products')
+        .doc(widget.productId)
+        .get();
   }
 
   @override
@@ -54,11 +55,13 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
       future: _productFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+              body: Center(child: CircularProgressIndicator()));
         }
 
         if (snapshot.hasError) {
-          return Scaffold(body: Center(child: Text('Error: ${snapshot.error}')));
+          return Scaffold(
+              body: Center(child: Text('Error: ${snapshot.error}')));
         }
 
         final doc = snapshot.data;
@@ -72,30 +75,39 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
         final vendor = vendorProvider.getById(product.vendorId);
 
         return Scaffold(
-          backgroundColor: AppColors.bgLight,
-          appBar: AppBar(title: const Text('Place Order'), backgroundColor: Colors.white, elevation: 0),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: AppBar(
+              title: const Text('Place Order'),
+              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+              elevation: 0),
           body: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Product summary
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   padding: const EdgeInsets.all(16),
                   margin: const EdgeInsets.only(bottom: 8),
                   child: Row(
                     children: [
-                       ClipRRect(
+                      ClipRRect(
                         borderRadius: BorderRadius.circular(10),
-                        child: AppCachedImage(url: product.images.first, width: 72, height: 72),
+                        child: AppCachedImage(
+                            url: product.images.first, width: 72, height: 72),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(product.title, style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600), maxLines: 2),
-                            Text('by ${vendor?.name ?? 'Loading...'}', style: AppTypography.small.copyWith(color: AppColors.textMedium)),
+                            Text(product.title,
+                                style: AppTypography.bodyMedium
+                                    .copyWith(fontWeight: FontWeight.w600),
+                                maxLines: 2),
+                            Text('by ${vendor?.name ?? 'Loading...'}',
+                                style: AppTypography.small
+                                    .copyWith(color: AppColors.textMedium)),
                           ],
                         ),
                       ),
@@ -105,7 +117,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 
                 // Delivery Address
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   padding: const EdgeInsets.all(20),
                   margin: const EdgeInsets.only(bottom: 8),
                   child: Column(
@@ -116,21 +128,29 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.location_on_outlined, size: 20, color: AppColors.primaryGreen),
+                              const Icon(Icons.location_on_outlined,
+                                  size: 20, color: AppColors.primaryGreen),
                               const SizedBox(width: 8),
-                              Text('Delivery Address', style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+                              Text('Delivery Address',
+                                  style: AppTypography.bodyMedium
+                                      .copyWith(fontWeight: FontWeight.bold)),
                             ],
                           ),
                           TextButton(
-                            onPressed: () => _showAddAddressBottomSheet(context),
-                            child: const Text('+ Add New', style: TextStyle(color: AppColors.primaryGreen)),
+                            onPressed: () =>
+                                _showAddAddressBottomSheet(context),
+                            child: const Text('+ Add New',
+                                style:
+                                    TextStyle(color: AppColors.primaryGreen)),
                           ),
                         ],
                       ),
                       if (addresses.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Center(child: Text('No addresses found. Please add one.')),
+                          child: Center(
+                              child:
+                                  Text('No addresses found. Please add one.')),
                         )
                       else
                         ListView.builder(
@@ -141,29 +161,47 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                           itemBuilder: (ctx, i) {
                             final isSelected = _selectedAddressIndex == i;
                             return GestureDetector(
-                              onTap: () => setState(() => _selectedAddressIndex = i),
+                              onTap: () =>
+                                  setState(() => _selectedAddressIndex = i),
                               child: Container(
                                 margin: const EdgeInsets.only(bottom: 10),
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  border: Border.all(color: isSelected ? AppColors.primaryGreen : AppColors.divider),
+                                  border: Border.all(
+                                      color: isSelected
+                                          ? AppColors.primaryGreen
+                                          : AppColors.divider),
                                   borderRadius: BorderRadius.circular(10),
-                                  color: isSelected ? AppColors.primaryGreen.withAlpha(10) : Colors.transparent,
+                                  color: isSelected
+                                      ? AppColors.primaryGreen.withAlpha(10)
+                                      : Colors.transparent,
                                 ),
                                 child: Row(
                                   children: [
                                     Icon(
-                                      isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                                      isSelected
+                                          ? Icons.radio_button_checked
+                                          : Icons.radio_button_off,
                                       size: 20,
-                                      color: isSelected ? AppColors.primaryGreen : AppColors.textLight,
+                                      color: isSelected
+                                          ? AppColors.primaryGreen
+                                          : AppColors.textLight,
                                     ),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Text(addresses[i].label, style: AppTypography.small.copyWith(fontWeight: FontWeight.bold)),
-                                          Text(addresses[i].address, style: AppTypography.caption, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                          Text(addresses[i].label,
+                                              style: AppTypography.small
+                                                  .copyWith(
+                                                      fontWeight:
+                                                          FontWeight.bold)),
+                                          Text(addresses[i].address,
+                                              style: AppTypography.caption,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis),
                                         ],
                                       ),
                                     ),
@@ -179,13 +217,15 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 
                 // Order Details
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   padding: const EdgeInsets.all(20),
                   margin: const EdgeInsets.only(bottom: 8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Order Details', style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+                      Text('Order Details',
+                          style: AppTypography.bodyMedium
+                              .copyWith(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -193,27 +233,22 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                           const Text('Quantity'),
                           Row(
                             children: [
-                              _QtyBtn(icon: Icons.remove, onTap: _quantity > 1 ? () => setState(() => _quantity--) : null),
-                              SizedBox(width: 40, child: Text(_quantity.toString(), textAlign: TextAlign.center, style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold))),
-                              _QtyBtn(icon: Icons.add, onTap: () => setState(() => _quantity++)),
+                              _QtyBtn(
+                                  icon: Icons.remove,
+                                  onTap: _quantity > 1
+                                      ? () => setState(() => _quantity--)
+                                      : null),
+                              SizedBox(
+                                  width: 40,
+                                  child: Text(_quantity.toString(),
+                                      textAlign: TextAlign.center,
+                                      style: AppTypography.bodyMedium.copyWith(
+                                          fontWeight: FontWeight.bold))),
+                              _QtyBtn(
+                                  icon: Icons.add,
+                                  onTap: () => setState(() => _quantity++)),
                             ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text('Individual Price'),
-                          Text(formatPKR(product.unitPrice), style: const TextStyle(fontWeight: FontWeight.w600)),
-                        ],
-                      ),
-                      const Divider(height: 32),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Estimated Total', style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
-                          Text(formatPKR(product.unitPrice * _quantity), style: AppTypography.h3.copyWith(color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ],
@@ -222,7 +257,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
 
                 // Options
                 Container(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   padding: const EdgeInsets.all(20),
                   margin: const EdgeInsets.only(bottom: 8),
                   child: Column(
@@ -231,7 +266,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                         icon: Icons.call_outlined,
                         title: 'Call before delivery',
                         value: _callBeforeDelivery,
-                        onChanged: (v) => setState(() => _callBeforeDelivery = v),
+                        onChanged: (v) =>
+                            setState(() => _callBeforeDelivery = v),
                       ),
                       _OptionTile(
                         icon: Icons.door_front_door_outlined,
@@ -253,7 +289,8 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                         height: 24,
                         child: Checkbox(
                           value: _termsAccepted,
-                          onChanged: (v) => setState(() => _termsAccepted = v ?? false),
+                          onChanged: (v) =>
+                              setState(() => _termsAccepted = v ?? false),
                           activeColor: AppColors.primaryGreen,
                         ),
                       ),
@@ -275,8 +312,13 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
           bottomSheet: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withAlpha(20), blurRadius: 10, offset: const Offset(0, -5))],
+              color: Theme.of(context).cardColor,
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withAlpha(20),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5))
+              ],
             ),
             child: Row(
               children: [
@@ -284,59 +326,68 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                   child: HunarmandButton(
                     label: _isLoading ? 'Placing Order...' : 'Place My Order',
                     isLoading: _isLoading,
-                    onPressed: _isLoading 
-                      ? null 
-                      : () async {
-                        if (addresses.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Please add a delivery address first.'), backgroundColor: AppColors.statusCancelled),
-                          );
-                          return;
-                        }
-                        if (_quantity < product.moq) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Minimum order quantity for this item is ${product.moq} units.'),
-                              backgroundColor: AppColors.statusCancelled,
-                            ),
-                          );
-                          return;
-                        }
-                        if (!_termsAccepted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please agree to the Terms & Conditions to proceed.'),
-                              backgroundColor: AppColors.statusCancelled,
-                            ),
-                          );
-                          return;
-                        }
-                        
-                        setState(() => _isLoading = true);
-                        try {
-                          final selectedAddress = addresses[_selectedAddressIndex].address;
-                          
-                          final orderId = await context.read<OrderProvider>().placeOrder(
-                            productId: product.id,
-                            quantity: _quantity,
-                            deliveryAddress: selectedAddress,
-                          );
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            if (addresses.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Please add a delivery address first.'),
+                                    backgroundColor: AppColors.statusCancelled),
+                              );
+                              return;
+                            }
+                            if (_quantity < product.moq) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Minimum order quantity for this item is ${product.moq} units.'),
+                                  backgroundColor: AppColors.statusCancelled,
+                                ),
+                              );
+                              return;
+                            }
+                            if (!_termsAccepted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Please agree to the Terms & Conditions to proceed.'),
+                                  backgroundColor: AppColors.statusCancelled,
+                                ),
+                              );
+                              return;
+                            }
 
-                          print('Order created successfully: $orderId');
-                          
-                          if (!context.mounted) return;
-                          setState(() => _isLoading = false);
-                          context.pushReplacement('/order-confirmation/$orderId');
+                            setState(() => _isLoading = true);
+                            try {
+                              final selectedAddress =
+                                  addresses[_selectedAddressIndex].address;
 
-                        } catch (e) {
-                          print('Order creation error: $e');
-                          if (!context.mounted) return;
-                          setState(() => _isLoading = false);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Failed to place order: $e')),
-                          );
-                        }
-                      },
+                              final orderId = await context
+                                  .read<OrderProvider>()
+                                  .placeOrder(
+                                    productId: product.id,
+                                    quantity: _quantity,
+                                    deliveryAddress: selectedAddress,
+                                  );
+
+                              print('Order created successfully: $orderId');
+
+                              if (!context.mounted) return;
+                              setState(() => _isLoading = false);
+                              context.pushReplacement(
+                                  '/order-confirmation/$orderId');
+                            } catch (e) {
+                              print('Order creation error: $e');
+                              if (!context.mounted) return;
+                              setState(() => _isLoading = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text('Failed to place order: $e')),
+                              );
+                            }
+                          },
                   ),
                 ),
               ],
@@ -354,10 +405,10 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          padding: EdgeInsets.fromLTRB(
+              20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,11 +417,15 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Add New Address', style: AppTypography.h3),
-                  IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close)),
+                  IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close)),
                 ],
               ),
               const SizedBox(height: 16),
-              Text('Label', style: AppTypography.small.copyWith(fontWeight: FontWeight.bold)),
+              Text('Label',
+                  style: AppTypography.small
+                      .copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Row(
                 children: ['Home', 'Work', 'Other'].map((label) {
@@ -379,44 +434,55 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                     onTap: () => setModalState(() => selectedLabel = label),
                     child: Container(
                       margin: const EdgeInsets.only(right: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primaryGreen : AppColors.bgLight,
+                        color: isSelected
+                            ? AppColors.primaryGreen
+                            : Theme.of(context).scaffoldBackgroundColor,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(label, style: TextStyle(color: isSelected ? Colors.white : AppColors.textMedium)),
+                      child: Text(label,
+                          style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.textMedium)),
                     ),
                   );
                 }).toList(),
               ),
               const SizedBox(height: 20),
-              Text('Full Address', style: AppTypography.small.copyWith(fontWeight: FontWeight.bold)),
+              Text('Full Address',
+                  style: AppTypography.small
+                      .copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextField(
                 controller: addressCtrl,
                 maxLines: 3,
-                decoration: const InputDecoration(hintText: 'Enter your detail address...'),
+                decoration: const InputDecoration(
+                    hintText: 'Enter your detail address...'),
               ),
               const SizedBox(height: 24),
               HunarmandButton(
                 label: 'Save Address',
                 onPressed: () async {
                   if (addressCtrl.text.isEmpty) return;
-                  
+
                   final newAddr = UserAddress(
                     id: DateTime.now().millisecondsSinceEpoch.toString(),
                     label: selectedLabel,
                     address: addressCtrl.text,
                     isDefault: false,
                   );
-                  
+
                   await context.read<UserProvider>().addAddress(newAddr);
-                  
+
                   if (!context.mounted) return;
                   Navigator.pop(ctx);
-                  
+
                   // Select the newly added address (it's last in the list)
-                  setState(() => _selectedAddressIndex = context.read<UserProvider>().addresses.length - 1);
+                  setState(() => _selectedAddressIndex =
+                      context.read<UserProvider>().addresses.length - 1);
                 },
               ),
             ],
@@ -439,10 +505,15 @@ class _QtyBtn extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          border: Border.all(color: onTap != null ? AppColors.primaryGreen : AppColors.divider),
+          border: Border.all(
+              color:
+                  onTap != null ? AppColors.primaryGreen : AppColors.divider),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: Icon(icon, size: 20, color: onTap != null ? AppColors.primaryGreen : AppColors.textLight),
+        child: Icon(icon,
+            size: 20,
+            color:
+                onTap != null ? AppColors.primaryGreen : AppColors.textLight),
       ),
     );
   }
@@ -473,7 +544,7 @@ class _OptionTile extends StatelessWidget {
           Text(title, style: AppTypography.body),
         ],
       ),
-      activeColor: AppColors.primaryGreen,
+      activeThumbColor: AppColors.primaryGreen,
       contentPadding: EdgeInsets.zero,
     );
   }

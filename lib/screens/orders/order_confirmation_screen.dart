@@ -39,7 +39,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen>
     final order = context.read<OrderProvider>().getById(widget.orderId);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -71,7 +71,7 @@ class _OrderConfirmationScreenState extends State<OrderConfirmationScreen>
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.bgLight,
+                  color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(

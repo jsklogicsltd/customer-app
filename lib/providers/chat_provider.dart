@@ -25,16 +25,23 @@ class ChatProvider extends ChangeNotifier {
     _subs[chatId] = _db
         .collection('messages')
         .where('chatId', isEqualTo: chatId)
-        .orderBy('timestamp', descending: false)
         .snapshots()
         .listen((snapshot) {
-      _chats[chatId] = snapshot.docs.map((doc) {
+      final messages = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
-        // Assume 'isMe' is derived from senderId == currentUser.uid
         data['isMe'] = data['senderId'] == _auth.currentUser?.uid;
         return ChatMessage.fromMap(data);
       }).toList();
+
+      // Client-side sort: timestamp ascending
+      messages.sort((a, b) {
+        final aTime = (a.timestamp as Timestamp?)?.toDate() ?? DateTime(2000);
+        final bTime = (b.timestamp as Timestamp?)?.toDate() ?? DateTime(2000);
+        return aTime.compareTo(bTime);
+      });
+
+      _chats[chatId] = messages;
       notifyListeners();
     });
   }

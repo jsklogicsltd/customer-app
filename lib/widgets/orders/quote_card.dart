@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/quote.dart';
+import '../../providers/order_provider.dart';
 import '../../providers/quote_provider.dart';
 import '../common/cached_image.dart';
 
@@ -33,7 +34,7 @@ class _QuoteCardState extends State<QuoteCard> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -167,7 +168,7 @@ class _QuoteCardState extends State<QuoteCard> {
               padding: const EdgeInsets.all(12),
               width: double.infinity,
               decoration: BoxDecoration(
-                color: AppColors.bgLight,
+                color: Theme.of(context).scaffoldBackgroundColor,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -268,6 +269,8 @@ class _QuoteCardState extends State<QuoteCard> {
             backgroundColor: AppColors.primaryGreen,
           ),
         );
+        // Switch to Active tab so the user sees their order immediately
+        context.read<OrderProvider>().ordersTabIndex = 3;
       }
     } catch (e) {
       if (mounted) {

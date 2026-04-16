@@ -75,8 +75,16 @@ class _NotifCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         provider.markRead(notif.id);
-        // Navigate based on actionRoute
-        context.push(notif.actionRoute.startsWith('/') ? notif.actionRoute : '/home');
+        // Navigate to Quotes tab for quote-related notifications
+        final route = notif.actionRoute.startsWith('/') ? notif.actionRoute : '/home';
+        final isQuoteNotif = notif.type == 'quote_ready' ||
+            notif.type == 'onCommissionApplied' ||
+            notif.title.toString().toLowerCase().contains('quote');
+        if (isQuoteNotif || route == '/my-orders?tab=quotes') {
+          context.push('/my-orders', extra: {'initialTab': 2});
+        } else {
+          context.push(route);
+        }
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),

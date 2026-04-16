@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
-import '../../models/quote.dart';
-import 'quote_card.dart';
+import '../../models/order.dart';
+import 'order_quote_card.dart';
 
-class QuotesList extends StatelessWidget {
-  final List<QuoteModel> quotes;
+/// Shows a list of orders that have status 'quote-sent-to-customer'.
+/// Each card shows pricing breakdown and accept/reject buttons.
+class OrderQuotesList extends StatelessWidget {
+  final List<OrderModel> orders;
   final bool isLoading;
+  final VoidCallback? onQuoteAccepted;
 
-  const QuotesList({
+  const OrderQuotesList({
     super.key,
-    required this.quotes,
+    required this.orders,
     this.isLoading = false,
+    this.onQuoteAccepted,
   });
 
   @override
@@ -20,7 +24,7 @@ class QuotesList extends StatelessWidget {
       return const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen));
     }
 
-    if (quotes.isEmpty) {
+    if (orders.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
@@ -34,8 +38,8 @@ class QuotesList extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.assignment_outlined, // quote/document icon
-                  size: 48, 
+                  Icons.assignment_outlined,
+                  size: 48,
                   color: AppColors.textLight,
                 ),
               ),
@@ -47,7 +51,7 @@ class QuotesList extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'When vendor sends a quote it will appear here',
+                'When a quote is sent to you, it will appear here',
                 style: AppTypography.small.copyWith(color: AppColors.textMedium),
                 textAlign: TextAlign.center,
               ),
@@ -59,9 +63,12 @@ class QuotesList extends StatelessWidget {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: quotes.length,
+      itemCount: orders.length,
       itemBuilder: (context, index) {
-        return QuoteCard(quote: quotes[index]);
+        return OrderQuoteCard(
+          order: orders[index],
+          onAccepted: onQuoteAccepted,
+        );
       },
     );
   }

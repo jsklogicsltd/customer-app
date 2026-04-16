@@ -41,14 +41,22 @@ class QuoteProvider extends ChangeNotifier {
     _quotesSub = _db
         .collection('quotes')
         .where('customerId', isEqualTo: user.uid)
-        .where('status', isEqualTo: 'pending')
         .snapshots()
         .listen((snapshot) {
-      pendingQuotes = snapshot.docs.map((doc) {
-        return QuoteModel.fromFirestore(doc.data(), doc.id);
-      }).toList();
-      _isLoading = false;
-      notifyListeners();
+      try {
+        final allQuotes = snapshot.docs.map((doc) {
+          return QuoteModel.fromFirestore(doc.data(), doc.id);
+        }).toList();
+        
+        pendingQuotes = allQuotes.where((q) => 
+          q.status == 'pending' || q.status == 'sent-to-customer'
+        ).toList();
+      } catch (e) {
+        debugPrint('>>> QuoteProvider PARSING ERROR: $e');
+      } finally {
+        _isLoading = false;
+        notifyListeners();
+      }
     }, onError: (e) {
       debugPrint('Error in QuoteProvider listener: $e');
       _isLoading = false;
@@ -75,6 +83,7 @@ class QuoteProvider extends ChangeNotifier {
       batch.update(_db.collection('quotes').doc(quoteId), {
         'status': 'accepted',
         'acceptedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       // 2. Update order status and confirmed price
@@ -82,6 +91,7 @@ class QuoteProvider extends ChangeNotifier {
         'status': 'in-production',
         'confirmedPrice': finalPrice,
         'customerConfirmedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
         'progressPercent': 10, // Initial progress
         'timeline': FieldValue.arrayUnion([
           {
@@ -114,6 +124,7 @@ class QuoteProvider extends ChangeNotifier {
       batch.update(_db.collection('quotes').doc(quoteId), {
         'status': 'declined',
         'declinedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       // 2. Update order status to quote-declined
@@ -121,6 +132,7 @@ class QuoteProvider extends ChangeNotifier {
         'status': 'quote-declined',
         'cancelledAt': FieldValue.serverTimestamp(),
         'cancelReason': 'Customer declined vendor quote',
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       await batch.commit();

@@ -15,7 +15,7 @@ class ProductCard extends StatelessWidget {
       onTap: () => context.push('/product/${product.id}'),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -47,8 +47,8 @@ class ProductCard extends StatelessWidget {
                     right: 8,
                     child: Container(
                       padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor.withAlpha(200),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.favorite_border_rounded, size: 18, color: AppColors.textLight),
@@ -81,7 +81,6 @@ class ProductCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: AppTypography.small.copyWith(
                             fontWeight: FontWeight.w600,
-                            color: AppColors.textDark,
                           ),
                         ),
                       ],
@@ -93,7 +92,7 @@ class ProductCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppColors.bgLight,
+                            color: Theme.of(context).scaffoldBackgroundColor,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(

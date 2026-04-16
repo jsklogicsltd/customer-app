@@ -38,12 +38,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
   @override
   Widget build(BuildContext context) {
 
+    final query = widget.categoryName == 'All Products'
+        ? FirebaseFirestore.instance.collection('products')
+        : FirebaseFirestore.instance
+            .collection('products')
+            .where('category', isEqualTo: widget.categoryName);
+
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('products')
-          .where('status', isEqualTo: 'live')
-          .where('category', isEqualTo: widget.categoryName)
-          .snapshots(),
+      stream: query.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));

@@ -25,7 +25,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ProductProvider>(context, listen: false).fetchProducts();
-      Provider.of<VendorProvider>(context, listen: false).fetchVerifiedVendors();
+      Provider.of<VendorProvider>(context, listen: false)
+          .fetchVerifiedVendors();
     });
   }
 
@@ -39,7 +40,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final user = userProvider.user;
 
     if (userProvider.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.primaryGreen)));
+      return const Scaffold(
+          body: Center(
+              child: CircularProgressIndicator(color: AppColors.primaryGreen)));
     }
 
     if (userProvider.error != null) {
@@ -57,17 +60,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   userProvider.error!,
                   textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(color: AppColors.textMedium),
+                  style:
+                      AppTypography.body.copyWith(color: AppColors.textMedium),
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton(
-                  onPressed: () => userProvider.signOut(), // Signing out triggers a refresh on auth state
+                  onPressed: () => userProvider
+                      .signOut(), // Signing out triggers a refresh on auth state
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryGreen,
                     minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Back to Login', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text('Back to Login',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -77,55 +85,24 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (user == null) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text('🏺', style: TextStyle(fontSize: 64)),
-                const SizedBox(height: 24),
-                Text('Profile Not Found', style: AppTypography.h2),
-                const SizedBox(height: 12),
-                Text(
-                   'We couldn\'t find your profile information. This may happen if your registration was incomplete.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(color: AppColors.textMedium),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: () => context.go('/profile-setup'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryGreen,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('Complete Setup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () => userProvider.signOut(),
-                  child: const Text('Back to Login', style: TextStyle(color: AppColors.textLight)),
-                ),
-              ],
-            ),
-          ),
+          child: CircularProgressIndicator(color: AppColors.primaryGreen),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: AppColors.bgLight,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
           // App Bar
           SliverAppBar(
             floating: true,
-            backgroundColor: Colors.white,
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.menu_rounded, color: AppColors.textDark),
+              icon: const Icon(Icons.menu_rounded),
               onPressed: () {},
             ),
             title: Row(
@@ -142,8 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Stack(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.notifications_none_rounded,
-                        color: AppColors.textDark),
+                    icon: const Icon(Icons.notifications_none_rounded),
                     onPressed: () => context.push('/notifications'),
                   ),
                   if (notifProvider.unreadCount > 0)
@@ -169,12 +145,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () => context.go('/profile-tab'),
                 child: Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: CircleAvatar(
                     radius: 17,
-                    backgroundImage: NetworkImage(user.avatar),
+                    backgroundImage: NetworkImage(user.profileImageUrl),
                   ),
                 ),
               ),
@@ -193,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
@@ -267,7 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
 
                 const SizedBox(height: 20),
-                
+
                 const SizedBox(height: 10),
 
                 // Popular Categories

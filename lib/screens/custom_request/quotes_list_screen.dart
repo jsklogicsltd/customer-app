@@ -34,9 +34,6 @@ class QuotesListScreen extends StatelessWidget {
         stream: FirebaseFirestore.instance
             .collection('customRequests')
             .where('customerId', isEqualTo: user.id)
-            .where('status', isNotEqualTo: 'new')
-            .orderBy('status')
-            .orderBy('submittedDate', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -47,7 +44,20 @@ class QuotesListScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator(color: AppColors.primaryGreen));
           }
 
-          final docs = snapshot.data?.docs ?? [];
+          final allDocs = snapshot.data?.docs ?? [];
+          final docs = allDocs.where((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            return data['status'] != 'new';
+          }).toList();
+
+          docs.sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+            final aDate = aData['submittedDate']?.toString() ?? '';
+            final bDate = bData['submittedDate']?.toString() ?? '';
+            return bDate.compareTo(aDate);
+          });
+
           if (docs.isEmpty) {
             return Center(
               child: Column(

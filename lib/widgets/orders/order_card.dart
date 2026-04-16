@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/order.dart';
+import '../../providers/order_provider.dart';
 import '../common/cached_image.dart';
 
 class OrderCard extends StatelessWidget {
@@ -21,7 +23,7 @@ class OrderCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -41,7 +43,7 @@ class OrderCard extends StatelessWidget {
             const Divider(height: 1, thickness: 1),
             _buildBody(),
             if (isActive) ...[
-              _buildActiveDetails(),
+              _buildActiveDetails(context),
             ],
             _buildFooter(context),
           ],
@@ -57,17 +59,17 @@ class OrderCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
         width: double.infinity,
         color: AppColors.primaryGreen,
-        child: Row(
+        child: const Row(
           children: [
-            const Icon(Icons.stars, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            const Expanded(
+            Icon(Icons.stars, color: Colors.white, size: 18),
+            SizedBox(width: 8),
+            Expanded(
               child: Text(
                 'Your quote is ready! Tap to view.',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
-            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
+            Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
           ],
         ),
       ),
@@ -120,6 +122,16 @@ class OrderCard extends StatelessWidget {
         label = 'Quote Ready — Review Now';
         color = Colors.green;
         icon = Icons.assignment_turned_in_outlined;
+        break;
+      case 'quote-sent-to-customer':
+        label = 'Quote Ready — Review Now';
+        color = Colors.orange;
+        icon = Icons.receipt_long_rounded;
+        break;
+      case 'customer-confirmed':
+        label = 'Order Confirmed';
+        color = Colors.green;
+        icon = Icons.check_circle_outline;
         break;
       case 'in-production':
         label = 'In Production';
@@ -234,7 +246,7 @@ class OrderCard extends StatelessWidget {
     );
   }
 
-  Widget _buildActiveDetails() {
+  Widget _buildActiveDetails(BuildContext context) {
     final showTracking = ['dispatched', 'delivered'].contains(order.status);
     
     return Column(
@@ -246,7 +258,7 @@ class OrderCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.bgLight,
+                color: Theme.of(context).scaffoldBackgroundColor,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -259,7 +271,7 @@ class OrderCard extends StatelessWidget {
                   ),
                   Text(
                     order.trackingNumber,
-                    style: AppTypography.small.copyWith(fontWeight: FontWeight.bold, color: AppColors.textDark),
+                    style: AppTypography.small.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -269,13 +281,88 @@ class OrderCard extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(14, 10, 14, 10),
           child: Text('Order Progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
         ),
-        _buildTimeline(),
+        _buildTimeline(context),
         const SizedBox(height: 16),
       ],
     );
   }
 
-  Widget _buildTimeline() {
+  Widget _buildTimeline(BuildContext context) {
+    // If we have a dynamic timeline from the vendor/admin, use it
+    if (order.timeline.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Column(
+          children: List.generate(order.timeline.length, (index) {
+            final item = order.timeline[index];
+            final isLast = index == order.timeline.length - 1;
+
+            return IntrinsicHeight(
+              child: Row(
+                children: [
+                  Column(
+                    children: [
+                      Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          color: item.completed ? AppColors.primaryGreen : Theme.of(context).cardColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: item.completed ? AppColors.primaryGreen : AppColors.divider,
+                            width: 2,
+                          ),
+                        ),
+                        child: item.completed
+                            ? const Icon(Icons.check, size: 10, color: Colors.white)
+                            : null,
+                      ),
+                      if (!isLast)
+                        Expanded(
+                          child: Container(
+                            width: 2,
+                            color: item.completed ? AppColors.primaryGreen : AppColors.divider,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.step,
+                            style: AppTypography.small.copyWith(
+                              fontWeight: item.current ? FontWeight.bold : FontWeight.normal,
+                              color: item.completed ? null : AppColors.textLight,
+                            ),
+                          ),
+                          if (item.date.isNotEmpty)
+                            Text(
+                              item.date,
+                              style: AppTypography.caption.copyWith(color: AppColors.textLight),
+                            ),
+                          if (item.note.isNotEmpty)
+                             Text(
+                              item.note,
+                              style: AppTypography.caption.copyWith(color: AppColors.textMedium, fontStyle: FontStyle.italic),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ),
+      );
+    }
+
+    // Fallback to status-based hardcoded timeline
     final steps = [
       'Order Placed',
       'Admin Approved',
@@ -293,7 +380,9 @@ class OrderCard extends StatelessWidget {
       case 'vendor-notified': currentStepIndex = 1; break;
       case 'vendor-confirmed': currentStepIndex = 2; break;
       case 'quote-submitted': 
-      case 'quote-sent': currentStepIndex = 3; break;
+      case 'quote-sent': 
+      case 'quote-sent-to-customer': currentStepIndex = 3; break;
+      case 'customer-confirmed': currentStepIndex = 3; break;
       case 'in-production': currentStepIndex = 4; break;
       case 'ready-to-ship': currentStepIndex = 5; break;
       case 'dispatched': currentStepIndex = 6; break;
@@ -318,7 +407,7 @@ class OrderCard extends StatelessWidget {
                       width: 18,
                       height: 18,
                       decoration: BoxDecoration(
-                        color: isCompleted ? AppColors.primaryGreen : Colors.white,
+                        color: isCompleted ? AppColors.primaryGreen : Theme.of(context).cardColor,
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: isCompleted ? AppColors.primaryGreen : AppColors.divider,
@@ -346,7 +435,7 @@ class OrderCard extends StatelessWidget {
                       steps[index],
                       style: AppTypography.small.copyWith(
                         fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                        color: isCompleted ? AppColors.textDark : AppColors.textLight,
+                        color: isCompleted ? null : AppColors.textLight,
                       ),
                     ),
                   ),
@@ -360,36 +449,108 @@ class OrderCard extends StatelessWidget {
   }
 
   Widget _buildFooter(BuildContext context) {
+    final isQuoteReady = ['quote-sent', 'quote-sent-to-customer'].contains(order.status);
+
     return Padding(
       padding: const EdgeInsets.all(14),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => context.push('/orders/${order.id}'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('View Details'),
+          if (isQuoteReady) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _handleAccept(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D5C2F),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Accept Quote', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _handleReject(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Decline'),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () => context.push('/chat/${order.vendorId}'),
-              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-              label: const Text('Contact'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryGreen,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            const SizedBox(height: 12),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => context.push('/orders/${order.id}'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('View Details'),
+                ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => context.push('/chat/${order.vendorId}'),
+                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                  label: const Text('Contact'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _handleAccept(BuildContext context) async {
+    try {
+      await context.read<OrderProvider>().acceptNormalQuote(order.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Quote Accepted! Order is now active.'), backgroundColor: AppColors.primaryGreen),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleReject(BuildContext context) async {
+    try {
+      await context.read<OrderProvider>().declineNormalQuote(order.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Quote Declined. Order has been cancelled.'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 }
