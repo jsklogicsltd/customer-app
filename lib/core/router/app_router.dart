@@ -230,7 +230,31 @@ class AppRouter {
         // Chat — Order-Centric Hub (Approach 3)
         GoRoute(
           path: '/chat',
-          builder: (_, __) => const ChatListScreen(),
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            if (extra != null && extra['chatType'] == 'product') {
+              final userProvider = context.read<UserProvider>();
+              final customerId = userProvider.user?.id ?? '';
+              final productId = extra['productId'] ?? '';
+              final vendorId = extra['vendorId'] ?? '';
+              
+              final threadId = ChatMessage.buildProductThreadId(
+                customerId: customerId,
+                productId: productId,
+                vendorId: vendorId,
+              );
+
+              return ChatDetailScreen(
+                threadId: threadId,
+                chatType: 'product',
+                productId: productId,
+                productName: extra['productName'],
+                vendorId: vendorId,
+                vendorName: extra['vendorName'],
+              );
+            }
+            return const ChatListScreen();
+          },
         ),
         GoRoute(
           path: '/chat/order/:orderId',

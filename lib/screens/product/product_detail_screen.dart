@@ -505,7 +505,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () => context.push('/chat'),
+                onPressed: () {
+                  context.push('/chat', extra: {
+                    'chatType': 'product',
+                    'productId': product.id,
+                    'productName': product.name,
+                    'vendorId': product.vendorId,
+                    'vendorName': product.vendorName,
+                  });
+                },
                 child: const Text('Contact Support'),
               ),
             ),

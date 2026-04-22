@@ -161,8 +161,105 @@ class ChatProvider extends ChangeNotifier {
         referenceType: 'chat',
       );
     } catch (e) {
-
       debugPrint('ChatProvider: sendMessage error: $e');
+    }
+  }
+
+  /// Sends a message about a specific product.
+  Future<void> sendProductMessage({
+    required String productId,
+    required String productName,
+    required String vendorId,
+    required String vendorName,
+    required String text,
+    String customerName = '',
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null || text.trim().isEmpty) return;
+
+    final threadId = ChatMessage.buildProductThreadId(
+      customerId: user.uid,
+      productId: productId,
+      vendorId: vendorId,
+    );
+
+    final now = DateTime.now();
+    final h = now.hour.toString().padLeft(2, '0');
+    final m = now.minute.toString().padLeft(2, '0');
+    final optimisticTime = '$h:$m';
+
+    // 1. Optimistic insert
+    final optimistic = ChatMessage(
+      id: 'pending_${now.millisecondsSinceEpoch}',
+      threadId: threadId,
+      threadType: 'customer_admin',
+      chatType: 'product',
+      productId: productId,
+      productName: productName,
+      vendorId: vendorId,
+      vendorName: vendorName,
+      senderId: user.uid,
+      senderType: 'customer',
+      receiverId: _adminUid ?? 'admin',
+      visibleTo: const ['customer', 'admin'],
+      displayAsName: 'Karsaazi Support',
+      text: text.trim(),
+      timestamp: optimisticTime,
+      sortKey: now.millisecondsSinceEpoch,
+      isMe: true,
+      customerName: customerName,
+      read: false,
+      isPending: true,
+    );
+
+    _threads[threadId] = [...(_threads[threadId] ?? []), optimistic];
+    notifyListeners();
+
+    // 2. Resolve admin
+    final adminUid = await _resolveAdminUid();
+
+    // 3. Persist
+    try {
+      final msg = ChatMessage(
+        id: '',
+        threadId: threadId,
+        threadType: 'customer_admin',
+        chatType: 'product',
+        productId: productId,
+        productName: productName,
+        vendorId: vendorId,
+        vendorName: vendorName,
+        senderId: user.uid,
+        senderType: 'customer',
+        receiverId: adminUid ?? 'admin',
+        visibleTo: const ['customer', 'admin'],
+        displayAsName: 'Karsaazi Support',
+        text: text.trim(),
+        timestamp: '',
+        sortKey: 0,
+        isMe: true,
+        customerName: customerName,
+        read: false,
+      );
+      await _db.collection('messages').add(msg.toFirestoreMap());
+
+      // 4. Notification
+      await NotificationService.sendNotification(
+        recipientId: adminUid ?? 'admin',
+        recipientType: 'admin',
+        title: 'New Product Inquiry 📦',
+        body: '$customerName is asking about $productName',
+        type: 'product_inquiry',
+        referenceId: threadId,
+        referenceType: 'chat',
+        // Pass extra data for admin routing if needed
+        extraData: {
+          'productId': productId,
+          'vendorId': vendorId,
+        },
+      );
+    } catch (e) {
+      debugPrint('ChatProvider: sendProductMessage error: $e');
     }
   }
 

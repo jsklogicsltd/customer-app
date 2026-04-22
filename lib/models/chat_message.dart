@@ -15,6 +15,13 @@ class ChatMessage {
   final String text;
   final Timestamp? firestoreTimestamp;
 
+  // Product context fields
+  final String chatType; // 'order' or 'product'
+  final String productId;
+  final String productName;
+  final String vendorId;
+  final String vendorName;
+
   // Derived / local fields
   /// Human-readable display time, e.g. "14:35"
   final String timestamp;
@@ -47,6 +54,11 @@ class ChatMessage {
     this.customerName,
     this.read = false,
     this.isPending = false,
+    this.chatType = 'order',
+    this.productId = '',
+    this.productName = '',
+    this.vendorId = '',
+    this.vendorName = '',
   });
 
   factory ChatMessage.fromMap(Map<String, dynamic> map, {bool isMe = false}) {
@@ -101,6 +113,11 @@ class ChatMessage {
       isMe: isMe,
       customerName: map['customerName'],
       read: map['read'] ?? false,
+      chatType: map['chatType'] ?? 'order',
+      productId: map['productId'] ?? '',
+      productName: map['productName'] ?? '',
+      vendorId: map['vendorId'] ?? '',
+      vendorName: map['vendorName'] ?? '',
     );
   }
 
@@ -119,6 +136,11 @@ class ChatMessage {
       'timestamp': FieldValue.serverTimestamp(),
       'customerName': customerName ?? '',
       'read': false,
+      'chatType': chatType,
+      'productId': productId,
+      'productName': productName,
+      'vendorId': vendorId,
+      'vendorName': vendorName,
     };
   }
 
@@ -128,4 +150,12 @@ class ChatMessage {
     required String customerId,
   }) =>
       '${orderId}_CUSTOMER_$customerId';
+
+  /// Builds a product-based threadId.
+  static String buildProductThreadId({
+    required String customerId,
+    required String productId,
+    required String vendorId,
+  }) =>
+      'chat_${customerId}_PRODUCT_${productId}_$vendorId';
 }

@@ -10,11 +10,23 @@ class ChatDetailScreen extends StatefulWidget {
   final String orderNumber;
   final String threadId;
 
+  // Product context (Optional)
+  final String? chatType;
+  final String? productId;
+  final String? productName;
+  final String? vendorId;
+  final String? vendorName;
+
   const ChatDetailScreen({
     super.key,
-    required this.orderId,
-    required this.orderNumber,
+    this.orderId = '',
+    this.orderNumber = '',
     required this.threadId,
+    this.chatType,
+    this.productId,
+    this.productName,
+    this.vendorId,
+    this.vendorName,
   });
 
   @override
@@ -57,11 +69,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _messageCtrl.clear();
     setState(() => _isSending = true);
 
-    await chatProvider.sendMessage(
-      orderId: widget.orderId,
-      text: text,
-      customerName: userProvider.user?.name ?? '',
-    );
+    if (widget.chatType == 'product' && widget.productId != null) {
+      await chatProvider.sendProductMessage(
+        productId: widget.productId!,
+        productName: widget.productName ?? 'Product',
+        vendorId: widget.vendorId ?? '',
+        vendorName: widget.vendorName ?? 'Vendor',
+        text: text,
+        customerName: userProvider.user?.name ?? '',
+      );
+    } else {
+      await chatProvider.sendMessage(
+        orderId: widget.orderId,
+        text: text,
+        customerName: userProvider.user?.name ?? '',
+      );
+    }
 
     setState(() => _isSending = false);
 
@@ -131,11 +154,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ),
                 ),
                 Text(
-                  'Order #${widget.orderNumber}',
+                  widget.chatType == 'product'
+                      ? 'Re: ${widget.productName}'
+                      : 'Order #${widget.orderNumber}',
                   style: AppTypography.caption.copyWith(
                     color: AppColors.gold,
                     fontWeight: FontWeight.w600,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
