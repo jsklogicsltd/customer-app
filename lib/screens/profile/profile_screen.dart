@@ -126,7 +126,7 @@ class ProfileScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      _StatItem(emoji: '📦', label: 'Orders', value: '${user.totalOrders}', onTap: () {}),
+                      _StatItem(emoji: '📦', label: 'Orders', value: '${user.totalOrders}', onTap: () => context.go('/orders-tab')),
                       _StatItem(emoji: '⭐', label: 'Reviews', value: '${user.totalReviews}', onTap: () {}),
                       _StatItem(emoji: '❤️', label: 'Saved', value: '${user.savedProducts.length}', onTap: () => context.push('/saved-items')),
                       _StatItem(emoji: '🏪', label: 'Vendors', value: '${user.savedVendors.length}', onTap: () => context.push('/saved-items')),
@@ -222,7 +222,7 @@ class ProfileScreen extends StatelessWidget {
                   title: 'Support & Legal',
                   items: [
                     _SettingsTile(icon: Icons.help_outline_rounded, label: 'Help Center', onTap: () {}),
-                    _SettingsTile(icon: Icons.headset_mic_outlined, label: 'Contact Support', onTap: () {}),
+                    _SettingsTile(icon: Icons.headset_mic_outlined, label: 'Contact Support', onTap: () => context.push('/chat')),
                     _SettingsTile(icon: Icons.description_outlined, label: 'Terms & Conditions', onTap: () {}),
                     _SettingsTile(icon: Icons.privacy_tip_outlined, label: 'Privacy Policy', onTap: () {}),
                   ],

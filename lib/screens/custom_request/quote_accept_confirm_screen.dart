@@ -6,6 +6,7 @@ import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/custom_request_provider.dart';
 import '../../providers/order_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../models/order.dart';
 import '../../widgets/common/hunarmand_button.dart';
 
@@ -233,7 +234,11 @@ class _QuoteAcceptConfirmScreenState extends State<QuoteAcceptConfirmScreen> {
       );
 
       final realOrderId = await orderProvider.addOrderFromObject(newOrder);
-      await customRequestProvider.acceptQuote(widget.requestId, realOrderId);
+      await customRequestProvider.acceptQuote(
+        widget.requestId, 
+        realOrderId, 
+        customerName: context.read<UserProvider>().user?.name,
+      );
 
       if (mounted) {
         // Navigate to shared Order Confirmation Screen

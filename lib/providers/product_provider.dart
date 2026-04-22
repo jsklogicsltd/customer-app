@@ -18,7 +18,10 @@ class ProductProvider extends ChangeNotifier {
       notifyListeners();
 
       print('=== Fetching products ===');
-      Query query = FirebaseFirestore.instance.collection('products');
+      Query query = FirebaseFirestore.instance
+          .collection('products')
+          .where('status', isEqualTo: 'active')
+          .where('isDraft', isEqualTo: false);
       
       final snapshot = await query.get();
 

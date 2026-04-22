@@ -41,6 +41,7 @@ class AppUser {
   bool notifications;
   String? fcmToken;
   bool profileSetupComplete;
+  String role;
 
   AppUser({
     required this.id,
@@ -62,6 +63,7 @@ class AppUser {
     required this.notifications,
     this.fcmToken,
     this.profileSetupComplete = false,
+    this.role = 'customer',
   });
 
   factory AppUser.fromMap(Map<String, dynamic> map) {
@@ -87,6 +89,7 @@ class AppUser {
       notifications: map['notifications'] ?? true,
       fcmToken: map['fcmToken'],
       profileSetupComplete: map['profileSetupComplete'] ?? false,
+      role: map['role'] ?? 'customer',
     );
   }
 
@@ -116,6 +119,7 @@ class AppUser {
       'notifications': notifications,
       'fcmToken': fcmToken,
       'profileSetupComplete': profileSetupComplete,
+      'role': role,
     };
   }
 }

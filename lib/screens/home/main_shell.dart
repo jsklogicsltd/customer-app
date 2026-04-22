@@ -15,7 +15,7 @@ class _MainShellState extends State<MainShell> {
   void _onTap(int index) {
     if (index == 2) {
       // Custom request tab — navigate directly
-      context.push('/custom-request/step1');
+      context.go('/custom-request/step1');
       return;
     }
 

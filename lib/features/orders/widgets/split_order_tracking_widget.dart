@@ -5,7 +5,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../models/order.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_typography.dart';
 
 class SplitOrderTrackingWidget extends StatefulWidget {
   final OrderModel order;
@@ -232,10 +231,10 @@ class _SplitOrderTrackingWidgetState extends State<SplitOrderTrackingWidget> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(children: [
-                    const Icon(Icons.store, color: primaryColor, size: 16),
+                    const Icon(Icons.inventory_2_outlined, color: primaryColor, size: 16),
                     const SizedBox(width: 8),
                     Text(
-                      'Vendor: ${partData['vendorName'] ?? "Vendor"}',
+                      'Shipment ${(entry.key).substring(0, 4).toUpperCase()}',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: primaryColor,

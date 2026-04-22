@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
@@ -81,8 +80,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (kIsWeb) {
         uploadTask = ref.putData(await _imageFile!.readAsBytes());
       } else {
-        uploadTask = ref.putFile(File(_imageFile!.path));
+        // Use readAsBytes for cross-platform compatibility without dart:io
+        uploadTask = ref.putData(await _imageFile!.readAsBytes());
       }
+
 
       uploadTask.snapshotEvents.listen((event) {
         setState(() {
@@ -156,11 +157,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           ),
                           child: ClipOval(
                             child: _imageFile != null
-                                ? (kIsWeb
-                                    ? Image.network(_imageFile!.path,
-                                        fit: BoxFit.cover)
-                                    : Image.file(File(_imageFile!.path),
-                                        fit: BoxFit.cover))
+                                ? Image.network(_imageFile!.path,
+                                    fit: BoxFit.cover)
+
                                 : (user.profileImageUrl.isNotEmpty
                                     ? Image.network(user.profileImageUrl,
                                         fit: BoxFit.cover)

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/order.dart';
 import '../models/split_order.dart';
+import '../services/notification_service.dart';
 
 class OrderProvider extends ChangeNotifier {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -254,6 +255,7 @@ class OrderProvider extends ChangeNotifier {
     required String productId,
     required int quantity,
     required String deliveryAddress,
+    String? customerName,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw 'User must be logged in to place an order';
@@ -286,6 +288,21 @@ class OrderProvider extends ChangeNotifier {
       'reviewed':         false,
       'updatedAt':        FieldValue.serverTimestamp(),
     });
+
+    // Send notification to admin
+    try {
+      await NotificationService.sendNotification(
+        recipientId: 'admin',
+        recipientType: 'admin',
+        title: 'New Order Received',
+        body: '${customerName ?? 'A customer'} placed an order for ${productData['productName'] ?? 'Product'}',
+        type: 'new_order',
+        referenceId: orderRef.id,
+        referenceType: 'order',
+      );
+    } catch (e) {
+      debugPrint('Error sending new order notification: $e');
+    }
 
     return orderRef.id;
   }
@@ -324,7 +341,7 @@ class OrderProvider extends ChangeNotifier {
     return docRef.id;
   }
 
-  Future<void> cancelOrder(String orderId, String reason) async {
+  Future<void> cancelOrder(String orderId, String reason, {String? customerName}) async {
     await _db.collection('orders').doc(orderId).update({
       'status': 'cancelled',
       'cancelledAt': FieldValue.serverTimestamp(),
@@ -339,6 +356,22 @@ class OrderProvider extends ChangeNotifier {
       ]),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    // Send notification to admin
+    try {
+      final order = getById(orderId);
+      await NotificationService.sendNotification(
+        recipientId: 'admin',
+        recipientType: 'admin',
+        title: 'Order Cancelled by Customer',
+        body: '${customerName ?? 'A customer'} cancelled order ${order?.orderNumber ?? orderId}',
+        type: 'order_update',
+        referenceId: orderId,
+        referenceType: 'order',
+      );
+    } catch (e) {
+      debugPrint('Error sending cancel order notification: $e');
+    }
   }
 
   Stream<List<OrderPartModel>> watchOrderParts(String orderId) {
@@ -354,7 +387,7 @@ class OrderProvider extends ChangeNotifier {
   }
 
   /// Accept a quote that was sent to the customer
-  Future<void> acceptNormalQuote(String orderId) async {
+  Future<void> acceptNormalQuote(String orderId, {String? customerName}) async {
     try {
       // Show loading
       isAccepting = true;
@@ -380,6 +413,22 @@ class OrderProvider extends ChangeNotifier {
       // Switch to Active tab (index 3)
       ordersTabIndex = activeTabIndex;
       notifyListeners();
+
+      // Send notification to admin
+      try {
+        final order = getById(orderId);
+        await NotificationService.sendNotification(
+          recipientId: 'admin',
+          recipientType: 'admin',
+          title: 'Quote Accepted',
+          body: '${customerName ?? 'A customer'} accepted the quote for ${order?.productName ?? 'Order'}',
+          type: 'quote_accepted',
+          referenceId: orderId,
+          referenceType: 'order',
+        );
+      } catch (e) {
+        debugPrint('Error sending quote acceptance notification: $e');
+      }
     } catch (e) {
       isAccepting = false;
       notifyListeners();
@@ -388,7 +437,7 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> declineNormalQuote(String orderId) async {
+  Future<void> declineNormalQuote(String orderId, {String? customerName}) async {
     try {
       await FirebaseFirestore.instance
         .collection('orders')
@@ -407,13 +456,29 @@ class OrderProvider extends ChangeNotifier {
       // Switch to Cancelled tab
       ordersTabIndex = cancelledTabIndex;
       notifyListeners();
+
+      // Send notification to admin
+      try {
+        final order = getById(orderId);
+        await NotificationService.sendNotification(
+          recipientId: 'admin',
+          recipientType: 'admin',
+          title: 'Quote Declined',
+          body: '${customerName ?? 'A customer'} declined the quote for ${order?.productName ?? 'Order'}',
+          type: 'quote_declined',
+          referenceId: orderId,
+          referenceType: 'order',
+        );
+      } catch (e) {
+        debugPrint('Error sending quote decline notification: $e');
+      }
     } catch (e) {
       debugPrint('>>> declineNormalQuote ERROR: $e');
       rethrow;
     }
   }
 
-  Future<void> acceptSplitQuote(String orderId) async {
+  Future<void> acceptSplitQuote(String orderId, {String? customerName}) async {
     try {
       isAccepting = true;
       notifyListeners();
@@ -462,6 +527,22 @@ class OrderProvider extends ChangeNotifier {
       // Switch to Active tab
       ordersTabIndex = activeTabIndex;
       notifyListeners();
+
+      // Send notification to admin
+      try {
+        final order = getById(orderId);
+        await NotificationService.sendNotification(
+          recipientId: 'admin',
+          recipientType: 'admin',
+          title: 'Split Quote Accepted',
+          body: '${customerName ?? 'A customer'} accepted the split quote for ${order?.productName ?? 'Order'}',
+          type: 'quote_accepted',
+          referenceId: orderId,
+          referenceType: 'order',
+        );
+      } catch (e) {
+        debugPrint('Error sending split quote acceptance notification: $e');
+      }
     } catch (e) {
       isAccepting = false;
       notifyListeners();
@@ -470,7 +551,7 @@ class OrderProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> declineSplitQuote(String orderId) async {
+  Future<void> declineSplitQuote(String orderId, {String? customerName}) async {
     try {
       await FirebaseFirestore.instance
           .collection('orders')
@@ -487,6 +568,22 @@ class OrderProvider extends ChangeNotifier {
       // Switch to Cancelled tab
       ordersTabIndex = cancelledTabIndex;
       notifyListeners();
+
+      // Send notification to admin
+      try {
+        final order = getById(orderId);
+        await NotificationService.sendNotification(
+          recipientId: 'admin',
+          recipientType: 'admin',
+          title: 'Split Quote Declined',
+          body: '${customerName ?? 'A customer'} declined the split quote for ${order?.productName ?? 'Order'}',
+          type: 'quote_declined',
+          referenceId: orderId,
+          referenceType: 'order',
+        );
+      } catch (e) {
+        debugPrint('Error sending split quote decline notification: $e');
+      }
     } catch (e) {
       debugPrint('declineSplitQuote ERROR: $e');
       rethrow;

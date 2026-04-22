@@ -6,6 +6,7 @@ import '../../core/utils/formatters.dart';
 import '../../models/quote.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/quote_provider.dart';
+import '../../providers/user_provider.dart';
 import '../common/cached_image.dart';
 
 class QuoteCard extends StatefulWidget {
@@ -25,6 +26,11 @@ class _QuoteCardState extends State<QuoteCard> {
 
   @override
   Widget build(BuildContext context) {
+    // If role is admin, we show the commission breakdown for verification.
+    // If role is customer, we hide commission and show final price only.
+    final role = context.watch<UserProvider>().user?.role ?? 'customer';
+    final isAdmin = role == 'admin';
+
     // Task 3: Always show customerFinalPrice as total price.
     // Includes admin commission.
     final displayPrice = widget.quote.customerFinalPrice > 0 
@@ -51,7 +57,7 @@ class _QuoteCardState extends State<QuoteCard> {
           children: [
             _buildProductInfo(),
             const Divider(height: 1),
-            _buildPricingDetails(displayPrice),
+            _buildPricingDetails(context, displayPrice),
             const Divider(height: 1),
             _buildTimelineAndNotes(),
             _buildActions(context, displayPrice),
@@ -98,19 +104,32 @@ class _QuoteCardState extends State<QuoteCard> {
     );
   }
 
-  Widget _buildPricingDetails(num displayPrice) {
+  Widget _buildPricingDetails(BuildContext context, num displayPrice) {
+    final role = context.read<UserProvider>().user?.role ?? 'customer';
+    final isAdmin = role == 'admin';
+
+    // Calculate display unit price (including commission for customers)
+    final customerUnitPrice = widget.quote.quantity > 0 
+        ? (displayPrice / widget.quote.quantity) 
+        : widget.quote.unitPrice;
+
     return Padding(
       padding: const EdgeInsets.all(14),
       child: Column(
         children: [
-          _buildDetailRow('Price per Unit', formatPKR(widget.quote.unitPrice)),
+          _buildDetailRow(
+            'Price per Unit', 
+            formatPKR(isAdmin ? widget.quote.unitPrice : customerUnitPrice)
+          ),
           _buildDetailRow('Qty', 'x ${widget.quote.quantity}'),
-          if (widget.quote.commissionAmount > 0)
+          
+          if (isAdmin && widget.quote.commissionAmount > 0)
             _buildDetailRow(
               'Admin Commission (${widget.quote.commissionPercent}%)', 
               '+ ${formatPKR(widget.quote.commissionAmount)}',
               valueColor: Colors.orange,
             ),
+            
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -129,14 +148,17 @@ class _QuoteCardState extends State<QuoteCard> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              '(Inclusive of all taxes & commissions)',
-              style: AppTypography.caption.copyWith(color: AppColors.textLight),
+          
+          if (isAdmin) ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '(Inclusive of all taxes & commissions)',
+                style: AppTypography.caption.copyWith(color: AppColors.textLight),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -257,10 +279,12 @@ class _QuoteCardState extends State<QuoteCard> {
   Future<void> _handleAccept(BuildContext context, num finalPrice) async {
     setState(() => _isActionLoading = true);
     try {
+      final user = context.read<UserProvider>().user;
       await context.read<QuoteProvider>().acceptQuote(
         widget.quote.id,
         widget.quote.orderId,
         finalPrice,
+        customerName: user?.name,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -307,7 +331,12 @@ class _QuoteCardState extends State<QuoteCard> {
 
     setState(() => _isActionLoading = true);
     try {
-      await context.read<QuoteProvider>().declineQuote(widget.quote.id, widget.quote.orderId);
+      final user = context.read<UserProvider>().user;
+      await context.read<QuoteProvider>().declineQuote(
+        widget.quote.id, 
+        widget.quote.orderId,
+        customerName: user?.name,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

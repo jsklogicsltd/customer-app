@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -7,7 +5,9 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/custom_request_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/common/hunarmand_button.dart';
+
 
 class CustomRequestStep4Screen extends StatefulWidget {
   const CustomRequestStep4Screen({super.key});
@@ -25,7 +25,9 @@ class _CustomRequestStep4ScreenState extends State<CustomRequestStep4Screen> {
 
     try {
       final p = context.read<CustomRequestProvider>();
-      final requestId = await p.submitRequest();
+      final u = context.read<UserProvider>();
+      final requestId = await p.submitRequest(customerName: u.user?.name ?? 'Customer');
+
       p.setLastSubmittedId(requestId);
 
       if (mounted) {
@@ -181,9 +183,7 @@ class _CustomRequestStep4ScreenState extends State<CustomRequestStep4Screen> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(10),
                               image: DecorationImage(
-                                image: kIsWeb
-                                    ? NetworkImage(p.step1Images[index].path) as ImageProvider
-                                    : FileImage(io.File(p.step1Images[index].path)),
+                                image: NetworkImage(p.step1Images[index].path),
                                 fit: BoxFit.cover,
                               ),
                             ),

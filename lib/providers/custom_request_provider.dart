@@ -5,6 +5,10 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/custom_request.dart';
+import '../services/notification_service.dart';
+import 'package:provider/provider.dart';
+import 'user_provider.dart';
+
 
 class CustomRequestProvider extends ChangeNotifier {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -93,7 +97,7 @@ class CustomRequestProvider extends ChangeNotifier {
     }
   }
 
-  void clearForm() {
+  void clearForm({bool notify = true}) {
     step1Category = '';
     step1SubCategory = '';
     step1ProductType = '';
@@ -108,15 +112,12 @@ class CustomRequestProvider extends ChangeNotifier {
     step3Deadline = '';
     step3DeliveryType = 'domestic';
     step3Packaging = 'standard';
-    notifyListeners();
+    if (notify) notifyListeners();
   }
 
-  Future<String> submitRequest() async {
+  Future<String> submitRequest({required String customerName}) async {
     final user = _auth.currentUser;
     if (user == null) throw 'User must be logged in to submit a request';
-
-    _isLoading = true;
-    notifyListeners();
 
     try {
       // 1. Upload Images
@@ -177,11 +178,30 @@ class CustomRequestProvider extends ChangeNotifier {
       };
 
       final docRef = await _db.collection('customRequests').add(newRequest);
-      clearForm();
+      
+      // 3. Send notification to admin
+      try {
+        await NotificationService.sendNotification(
+          recipientId: 'admin',
+          recipientType: 'admin',
+          title: 'New RFQ Received',
+          body: '$customerName submitted RFQ for $productLabel',
+          type: 'new_rfq',
+          referenceId: docRef.id,
+          referenceType: 'rfq',
+        );
+      } catch (e) {
+        debugPrint('Error sending RFQ notification: $e');
+      }
+
+      // Clear form silently — do NOT call notifyListeners() here because
+      // StatefulShellRoute keeps HomeScreen alive (inactive) and
+      // notifyListeners() on an inactive element throws a lifecycle assertion.
+      clearForm(notify: false);
       return docRef.id;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+
+    } catch (e) {
+      rethrow;
     }
   }
 
@@ -190,7 +210,7 @@ class CustomRequestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> acceptQuote(String requestId, String orderId) async {
+  Future<void> acceptQuote(String requestId, String orderId, {String? customerName}) async {
     await _db.collection('customRequests').doc(requestId).update({
       'status': 'confirmed',
       'confirmedOrderId': orderId,
@@ -202,5 +222,21 @@ class CustomRequestProvider extends ChangeNotifier {
         }
       ]),
     });
+
+    // Send notification to admin
+    try {
+      final request = getById(requestId);
+      await NotificationService.sendNotification(
+        recipientId: 'admin',
+        recipientType: 'admin',
+        title: 'Quote Accepted by Customer',
+        body: '${customerName ?? 'A customer'} accepted the quote for ${request?.productType ?? 'Custom Order'}',
+        type: 'quote_accepted',
+        referenceId: requestId,
+        referenceType: 'rfq',
+      );
+    } catch (e) {
+      debugPrint('Error sending quote acceptance notification: $e');
+    }
   }
 }

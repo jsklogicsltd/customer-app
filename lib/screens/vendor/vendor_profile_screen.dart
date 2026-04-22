@@ -159,40 +159,7 @@ class VendorProfileScreen extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 8),
 
-                // Contact
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Contact', style: AppTypography.h3),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () => context.push('/chat/$vendorId'),
-                              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                              label: const Text('WhatsApp'),
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.white),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () {},
-                              icon: const Icon(Icons.phone_outlined, size: 16),
-                              label: const Text('Call'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
 
                 const SizedBox(height: 8),
 

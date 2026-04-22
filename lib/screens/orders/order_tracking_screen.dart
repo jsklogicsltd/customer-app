@@ -9,6 +9,7 @@ import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../services/notification_service.dart';
 import '../../models/order.dart';
 import '../../widgets/orders/normal_order_tracking_widget.dart';
 import '../../features/orders/widgets/split_order_tracking_widget.dart';
@@ -73,6 +74,22 @@ Track your order on KARSAAZI App''';
                     'status': 'open',
                     'createdAt': FieldValue.serverTimestamp(),
                   });
+                  
+                  // Trigger admin notification for the report
+                  try {
+                    final userProvider = context.read<UserProvider>();
+                    await NotificationService.sendNotification(
+                      recipientId: 'admin',
+                      recipientType: 'admin',
+                      title: 'New Order Report',
+                      body: '${userProvider.user?.name ?? "A customer"} reported an issue with Order #$orderId',
+                      type: 'order_report',
+                      referenceId: orderId,
+                    );
+                  } catch (e) {
+                    debugPrint('Failed to send report notification: $e');
+                  }
+
                   if (context.mounted) {
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -107,11 +124,13 @@ Track your order on KARSAAZI App''';
     );
 
     if (confirmed == true) {
-      await FirebaseFirestore.instance.collection('orders').doc(orderId).update({
-        'status': 'cancelled',
-        'cancelledAt': FieldValue.serverTimestamp(),
-        'cancelledBy': 'customer',
-      });
+      final userProvider = context.read<UserProvider>();
+      await context.read<OrderProvider>().cancelOrder(
+        orderId,
+        'Cancelled by Customer',
+        customerName: userProvider.user?.name,
+      );
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Order cancelled successfully')),

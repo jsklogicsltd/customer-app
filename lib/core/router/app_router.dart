@@ -30,8 +30,10 @@ import '../../screens/custom_request/request_submitted_screen.dart';
 import '../../screens/custom_request/custom_request_status_screen.dart';
 import '../../screens/custom_request/quote_accept_confirm_screen.dart';
 import '../../screens/custom_request/quotes_list_screen.dart';
-import '../../screens/chat/enquiry_screen.dart';
-import '../../screens/chat/notifications_screen.dart';
+import '../../screens/chat/chat_list_screen.dart';
+import '../../screens/chat/chat_detail_screen.dart';
+import '../../screens/notifications/notifications_screen.dart';
+
 import '../../screens/profile/saved_items_screen.dart';
 import '../../screens/profile/edit_profile_screen.dart';
 import '../../screens/orders/my_orders_screen.dart';
@@ -225,16 +227,26 @@ class AppRouter {
         ),
         GoRoute(path: '/quotes', builder: (_, __) => const QuotesListScreen()),
 
-        // Chat
+        // Chat — Order-Centric Hub (Approach 3)
         GoRoute(
-          path: '/chat/:vendorId',
+          path: '/chat',
+          builder: (_, __) => const ChatListScreen(),
+        ),
+        GoRoute(
+          path: '/chat/order/:orderId',
           builder: (_, state) {
             final extra = state.extra as Map<String, dynamic>?;
-            return EnquiryScreen(
-              vendorId: state.pathParameters['vendorId']!,
-              productId: extra?['productId'],
+            return ChatDetailScreen(
+              orderId: state.pathParameters['orderId']!,
+              orderNumber: extra?['orderNumber'] ?? state.pathParameters['orderId']!,
+              threadId: extra?['threadId'] ?? '',
             );
           },
+        ),
+        // Legacy vendor enquiry route — redirected to chat list
+        GoRoute(
+          path: '/chat/:vendorId',
+          builder: (_, __) => const ChatListScreen(),
         ),
         GoRoute(
             path: '/notifications',

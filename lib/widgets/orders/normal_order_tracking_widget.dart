@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_colors.dart';
@@ -160,8 +161,9 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
       final idx =
           _trackingSteps.indexWhere((s) => s['status'] == 'in-progress');
       if (idx != -1) return idx;
-      if (_trackingSteps.every((s) => s['status'] == 'completed'))
+      if (_trackingSteps.every((s) => s['status'] == 'completed')) {
         return _trackingSteps.length;
+      }
       return 0;
     }();
 
@@ -233,8 +235,9 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
   }
 
   String _getCurrentStatusText() {
-    if (_trackingSteps.isEmpty)
+    if (_trackingSteps.isEmpty) {
       return widget.order.status.replaceAll('-', ' ').toUpperCase();
+    }
     final inProgress =
         _trackingSteps.where((s) => s['status'] == 'in-progress');
     if (inProgress.isNotEmpty) return inProgress.first['title'] ?? '';
@@ -247,7 +250,21 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
 
   Widget _buildTimeline() {
     if (_trackingSteps.isEmpty) {
-      return const Center(child: Text("No tracking steps yet."));
+      final activeStatuses = ['active', 'in-production', 'customer-confirmed', 'ready-to-ship'];
+      if (activeStatuses.contains(widget.order.status.toLowerCase())) {
+        // Return a virtual "Order Accepted" step if it's active but no steps are in DB yet
+        return _buildVirtualStep(
+          title: "Order Accepted",
+          description: "Your order has been accepted and is being prepared by the vendor.",
+          status: "completed",
+        );
+      }
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 40),
+          child: Text("No tracking steps yet.", style: TextStyle(color: AppColors.textMedium)),
+        ),
+      );
     }
 
     return ListView.builder(
@@ -537,22 +554,39 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Assigned Vendor',
+          const Text('Need Help?',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 16),
           Row(
             children: [
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: AppColors.primaryGreen.withAlpha(40),
-                child: Text(
-                  order.vendorName.isNotEmpty
-                      ? order.vendorName[0].toUpperCase()
-                      : '?',
-                  style: const TextStyle(
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppColors.gold, AppColors.goldLight],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.gold.withAlpha(80),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text(
+                    'K',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.primaryGreen,
-                      fontSize: 20),
+                      letterSpacing: 1,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 16),
@@ -560,23 +594,12 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(order.vendorName,
+                    Text('Karsaazi Support',
                         style: AppTypography.bodyMedium
                             .copyWith(fontWeight: FontWeight.bold)),
-                    Text('Karachi, Pakistan',
+                    Text('Always here for you',
                         style: AppTypography.small
                             .copyWith(color: AppColors.textMedium)),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: <Widget>[
-                        ...List.generate(5, (i) {
-                          return const Icon(Icons.star,
-                              color: AppColors.gold, size: 14);
-                        }),
-                        const SizedBox(width: 4),
-                        const Text('4.8', style: TextStyle(fontSize: 12)),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -585,20 +608,128 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () {},
+            child: OutlinedButton.icon(
+              onPressed: () {
+                context.push(
+                  '/chat/order/${order.id}',
+                  extra: {
+                    'orderId': order.id,
+                    'orderNumber': order.orderNumber.isNotEmpty
+                        ? order.orderNumber
+                        : order.id,
+                    'threadId':
+                        '${order.id}_CUSTOMER_${order.customerId}',
+                  },
+                );
+              },
+              icon: const Icon(Icons.support_agent_rounded, size: 18),
+              label: const Text('Contact Support'),
               style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.divider),
+                side: const BorderSide(color: AppColors.gold),
+                foregroundColor: AppColors.gold,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8)),
               ),
-              child: Text('Contact Vendor',
-                  style: TextStyle(
-                      color: Theme.of(context).textTheme.bodyLarge?.color)),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildVirtualStep({
+    required String title,
+    required String description,
+    required String status,
+  }) {
+    final isCompleted = status == 'completed';
+    final isInProgress = status == 'in-progress';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isCompleted || isInProgress
+                  ? const Color(0xFF0D5C2F)
+                  : Theme.of(context).cardColor,
+              border: Border.all(
+                color: isCompleted || isInProgress
+                    ? const Color(0xFF0D5C2F)
+                    : AppColors.divider,
+                width: 2,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isCompleted
+                  ? Icons.check
+                  : isInProgress
+                      ? Icons.play_arrow
+                      : null,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+        ]),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Theme.of(context).cardColor,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(color: AppColors.textMedium, fontSize: 12),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isCompleted
+                        ? const Color(0xFFE8F5EE).withAlpha(40)
+                        : isInProgress
+                            ? const Color(0xFFFFF5D6).withAlpha(40)
+                            : AppColors.divider.withAlpha(40),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    isCompleted
+                        ? '✓ Completed'
+                        : isInProgress
+                            ? '● In Progress'
+                            : '○ Pending',
+                    style: TextStyle(
+                      color: isCompleted
+                          ? const Color(0xFF0D5C2F)
+                          : isInProgress
+                              ? const Color(0xFF8A6000)
+                              : AppColors.textMedium,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -5,6 +5,7 @@ import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/order.dart';
 import '../../providers/order_provider.dart';
+import '../../providers/user_provider.dart';
 import '../common/cached_image.dart';
 
 /// Card for orders where admin has sent the final quote to the customer.
@@ -28,6 +29,8 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
 
   @override
   Widget build(BuildContext context) {
+    final role = context.watch<UserProvider>().user?.role ?? 'customer';
+    final isAdmin = role == 'admin';
     final isSplitOrder = widget.order.status == 'split-confirmed';
 
     if (isSplitOrder) {
@@ -56,7 +59,7 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
             const Divider(height: 1),
             _buildProductInfo(),
             const Divider(height: 1),
-            _buildPricingBreakdown(),
+            _buildPricingBreakdown(context),
             if (widget.order.rfqDeadline != null) ...[
               const Divider(height: 1),
               _buildDeadline(),
@@ -92,7 +95,7 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
             const Divider(height: 1),
             _buildProductInfo(),
             const Divider(height: 1),
-            _buildSplitPricingBreakdown(),
+            _buildSplitPricingBreakdown(context),
             if (widget.order.rfqDeadline != null) ...[
               const Divider(height: 1),
               _buildDeadline(),
@@ -148,18 +151,37 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
     );
   }
 
-  Widget _buildSplitPricingBreakdown() {
+  Widget _buildSplitPricingBreakdown(BuildContext context) {
+    final role = context.read<UserProvider>().user?.role ?? 'customer';
+    final isAdmin = role == 'admin';
+
+    final finalPrice = widget.order.splitCustomerFinalPrice > 0 
+        ? widget.order.splitCustomerFinalPrice 
+        : widget.order.customerPrice;
+
+    final customerUnitPrice = widget.order.quantity > 0 
+        ? (finalPrice / widget.order.quantity) 
+        : widget.order.unitPrice;
+
     return Padding(
       padding: const EdgeInsets.all(14),
       child: Column(
         children: [
-          _buildDetailRow('Vendor Price', formatPKR(widget.order.splitTotalVendorCost)),
-          if (widget.order.splitTotalCommission > 0)
+          if (isAdmin) ...[
+            _buildDetailRow('Vendor Price', formatPKR(widget.order.splitTotalVendorCost)),
+            if (widget.order.splitTotalCommission > 0)
+              _buildDetailRow(
+                'Commission',
+                '+ ${formatPKR(widget.order.splitTotalCommission)}',
+                valueColor: Colors.orange,
+              ),
+          ] else ...[
             _buildDetailRow(
-              'Commission',
-              '+ ${formatPKR(widget.order.splitTotalCommission)}',
-              valueColor: Colors.orange,
+              'Price per Unit', 
+              formatPKR(customerUnitPrice)
             ),
+            _buildDetailRow('Qty', 'x ${widget.order.quantity}'),
+          ],
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -170,9 +192,7 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
                     .copyWith(fontWeight: FontWeight.bold),
               ),
               Text(
-                formatPKR(widget.order.splitCustomerFinalPrice > 0 
-                  ? widget.order.splitCustomerFinalPrice 
-                  : widget.order.customerPrice),
+                formatPKR(finalPrice),
                 style: AppTypography.h3.copyWith(
                   color: AppColors.primaryGreen,
                   fontWeight: FontWeight.bold,
@@ -319,18 +339,33 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
     );
   }
 
-  Widget _buildPricingBreakdown() {
+  Widget _buildPricingBreakdown(BuildContext context) {
+    final role = context.read<UserProvider>().user?.role ?? 'customer';
+    final isAdmin = role == 'admin';
+
+    final customerUnitPrice = widget.order.quantity > 0 
+        ? (widget.order.customerPrice / widget.order.quantity) 
+        : widget.order.vendorQuote;
+
     return Padding(
       padding: const EdgeInsets.all(14),
       child: Column(
         children: [
-          _buildDetailRow('Vendor Quote', formatPKR(widget.order.vendorQuote)),
-          if (widget.order.commissionAmount > 0)
+          if (isAdmin) ...[
+            _buildDetailRow('Vendor Quote', formatPKR(widget.order.vendorQuote)),
+            if (widget.order.commissionAmount > 0)
+              _buildDetailRow(
+                'Platform Fee',
+                '+ ${formatPKR(widget.order.commissionAmount)}',
+                valueColor: Colors.orange,
+              ),
+          ] else ...[
             _buildDetailRow(
-              'Platform Fee',
-              '+ ${formatPKR(widget.order.commissionAmount)}',
-              valueColor: Colors.orange,
+              'Price per Unit', 
+              formatPKR(customerUnitPrice)
             ),
+            _buildDetailRow('Qty', 'x ${widget.order.quantity}'),
+          ],
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -350,14 +385,16 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              '(Inclusive of all charges)',
-              style: AppTypography.caption.copyWith(color: AppColors.textLight),
+          if (isAdmin) ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '(Inclusive of all charges)',
+                style: AppTypography.caption.copyWith(color: AppColors.textLight),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -468,7 +505,11 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
     if (!mounted) return;
     setState(() => _isActionLoading = true);
     try {
-      await context.read<OrderProvider>().acceptNormalQuote(orderId);
+      final user = context.read<UserProvider>().user;
+      await context.read<OrderProvider>().acceptNormalQuote(
+        orderId, 
+        customerName: user?.name,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -493,7 +534,11 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
     if (!mounted) return;
     setState(() => _isActionLoading = true);
     try {
-      await context.read<OrderProvider>().declineNormalQuote(orderId);
+      final user = context.read<UserProvider>().user;
+      await context.read<OrderProvider>().declineNormalQuote(
+        orderId,
+        customerName: user?.name,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -518,7 +563,11 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
     if (!mounted) return;
     setState(() => _isActionLoading = true);
     try {
-      await context.read<OrderProvider>().acceptSplitQuote(widget.order.id);
+      final user = context.read<UserProvider>().user;
+      await context.read<OrderProvider>().acceptSplitQuote(
+        widget.order.id,
+        customerName: user?.name,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -543,7 +592,11 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
     if (confirmed != true) return;
 
     try {
-      await context.read<OrderProvider>().declineSplitQuote(widget.order.id);
+      final user = context.read<UserProvider>().user;
+      await context.read<OrderProvider>().declineSplitQuote(
+        widget.order.id, 
+        customerName: user?.name,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

@@ -370,6 +370,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                                     productId: product.id,
                                     quantity: _quantity,
                                     deliveryAddress: selectedAddress,
+                                    customerName: userProvider.user?.name,
                                   );
 
                               print('Order created successfully: $orderId');

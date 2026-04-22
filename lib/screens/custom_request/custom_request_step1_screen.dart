@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' as io;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -118,6 +116,10 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
     return Scaffold(
       backgroundColor: AppColors.bgLight,
       appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => context.go('/home'),
+          icon: const Icon(Icons.arrow_back),
+        ),
         title: const Text('Create Custom Request'),
         backgroundColor: Colors.white,
         elevation: 0,
@@ -361,11 +363,10 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(10),
                                       image: DecorationImage(
-                                        image: kIsWeb 
-                                          ? NetworkImage(f.path) as ImageProvider
-                                          : FileImage(io.File(f.path)),
+                                        image: NetworkImage(f.path),
                                         fit: BoxFit.cover,
                                       ),
+
                                     ),
                                   ),
                                 Positioned(

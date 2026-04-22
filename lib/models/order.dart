@@ -80,6 +80,8 @@ class OrderModel {
 
   final List<OrderTimeline> timeline;
   final List<TrackingStep> trackingSteps;
+  final String currentStepId;
+  final String currentStepTitle;
   final int progressPercent;
   final String vendorName;
   final bool isSplitOrder;
@@ -115,6 +117,8 @@ class OrderModel {
     this.createdAt,
     this.timeline = const [],
     this.trackingSteps = const [],
+    this.currentStepId = '',
+    this.currentStepTitle = '',
     this.progressPercent = 0,
     this.vendorName = '',
     this.isSplitOrder = false,
@@ -190,6 +194,8 @@ class OrderModel {
       trackingSteps: (d['trackingSteps'] as List?)
           ?.map((v) => TrackingStep.fromMap(v))
           .toList() ?? [],
+      currentStepId: toStr(d['currentStepId']),
+      currentStepTitle: toStr(d['currentStepTitle']),
     );
   }
 }

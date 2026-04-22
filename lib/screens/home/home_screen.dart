@@ -11,6 +11,8 @@ import '../../providers/user_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../widgets/cards/product_card.dart';
 import '../../widgets/cards/vendor_card.dart';
+import '../../widgets/notification_bell.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -116,34 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             actions: [
-              Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_none_rounded),
-                    onPressed: () => context.push('/notifications'),
-                  ),
-                  if (notifProvider.unreadCount > 0)
-                    Positioned(
-                      right: 8,
-                      top: 8,
-                      child: Container(
-                        width: 16,
-                        height: 16,
-                        decoration: const BoxDecoration(
-                            color: Colors.red, shape: BoxShape.circle),
-                        child: Center(
-                          child: Text(
-                            '${notifProvider.unreadCount}',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              const NotificationBell(),
               GestureDetector(
                 onTap: () => context.go('/profile-tab'),
                 child: Padding(
@@ -231,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           emoji: '📦',
                           label: 'My Orders',
                           color: AppColors.statusDelivered,
-                          onTap: () => context.push('/orders')),
+                          onTap: () => context.go('/orders-tab')),
                       const SizedBox(width: 10),
                       _QuickAction(
                           emoji: '❤️',
@@ -346,32 +321,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 10),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: AnimationLimiter(
-                    child: GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        mainAxisExtent: 300,
-                      ),
-                      itemCount: productProvider.products.take(4).length,
-                      itemBuilder: (context, index) {
-                        return AnimationConfiguration.staggeredGrid(
-                          position: index,
-                          duration: const Duration(milliseconds: 375),
-                          columnCount: 2,
-                          child: ScaleAnimation(
-                            child: FadeInAnimation(
-                              child: ProductCard(
-                                  product: productProvider.products[index]),
-                            ),
-                          ),
-                        );
-                      },
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      mainAxisExtent: 300,
                     ),
+                    itemCount: productProvider.products.take(4).length,
+                    itemBuilder: (context, index) {
+                      return ProductCard(
+                          product: productProvider.products[index]);
+                    },
                   ),
                 ),
 

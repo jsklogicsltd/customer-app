@@ -97,76 +97,80 @@ class OrderCard extends StatelessWidget {
     Color color = Colors.grey;
     IconData icon = Icons.info_outline;
 
-    switch (order.status) {
-      case 'pending-approval':
-        label = 'Waiting for Admin Approval';
-        color = Colors.orange;
-        icon = Icons.hourglass_empty_rounded;
-        break;
-      case 'vendor-notified':
-        label = 'Sent to Vendor';
-        color = Colors.blue;
-        icon = Icons.send_rounded;
-        break;
-      case 'vendor-confirmed':
-        label = 'Vendor Confirmed';
-        color = Colors.green;
-        icon = Icons.check_circle_outline;
-        break;
-      case 'quote-submitted':
-        label = 'Quote Under Review';
-        color = Colors.orange;
-        icon = Icons.rate_review_outlined;
-        break;
-      case 'quote-sent':
-        label = 'Quote Ready — Review Now';
-        color = Colors.green;
-        icon = Icons.assignment_turned_in_outlined;
-        break;
-      case 'quote-sent-to-customer':
-        label = 'Quote Ready — Review Now';
-        color = Colors.orange;
-        icon = Icons.receipt_long_rounded;
-        break;
-      case 'customer-confirmed':
-        label = 'Order Confirmed';
-        color = Colors.green;
-        icon = Icons.check_circle_outline;
-        break;
-      case 'in-production':
-        label = 'In Production';
-        color = Colors.blue;
-        icon = Icons.precision_manufacturing_outlined;
-        break;
-      case 'ready-to-ship':
-        label = 'Ready to Ship';
-        color = Colors.orange;
-        icon = Icons.inventory_2_outlined;
-        break;
-      case 'dispatched':
-        label = 'On the Way';
-        color = Colors.green;
-        icon = Icons.local_shipping_outlined;
-        break;
-      case 'delivered':
-        label = 'Delivered';
-        color = Colors.green;
-        icon = Icons.verified_rounded;
-        break;
-      case 'completed':
-        label = 'Completed';
-        color = AppColors.primaryGreen;
-        icon = Icons.check_circle_rounded;
-        break;
-      case 'cancelled':
-      case 'quote-declined':
-        label = order.status == 'cancelled' ? 'Cancelled' : 'Quote Declined';
-        color = Colors.red;
-        icon = Icons.cancel_outlined;
-        break;
-      default:
-        label = order.status.toUpperCase();
-        color = Colors.grey;
+    // Prioritize dynamic tracking step title if available for active orders
+    if (order.currentStepTitle.isNotEmpty && 
+        (order.status == 'active' || order.status == 'in-production' || order.status == 'customer-confirmed')) {
+      label = order.currentStepTitle;
+      color = AppColors.primaryGreen;
+      icon = Icons.local_shipping_outlined;
+    } else {
+      switch (order.status) {
+        case 'pending-approval':
+          label = 'Waiting for Admin Approval';
+          color = Colors.orange;
+          icon = Icons.hourglass_empty_rounded;
+          break;
+        case 'vendor-notified':
+          label = 'Sent to Vendor';
+          color = Colors.blue;
+          icon = Icons.send_rounded;
+          break;
+        case 'vendor-confirmed':
+          label = 'Vendor Confirmed';
+          color = Colors.green;
+          icon = Icons.check_circle_outline;
+          break;
+        case 'quote-submitted':
+          label = 'Quote Under Review';
+          color = Colors.orange;
+          icon = Icons.rate_review_outlined;
+          break;
+        case 'quote-sent':
+        case 'quote-sent-to-customer':
+          label = 'Quote Ready — Review Now';
+          color = Colors.orange;
+          icon = Icons.receipt_long_rounded;
+          break;
+        case 'customer-confirmed':
+          label = 'Order Confirmed';
+          color = Colors.green;
+          icon = Icons.check_circle_outline;
+          break;
+        case 'in-production':
+          label = 'In Production';
+          color = Colors.blue;
+          icon = Icons.precision_manufacturing_outlined;
+          break;
+        case 'ready-to-ship':
+          label = 'Ready to Ship';
+          color = Colors.orange;
+          icon = Icons.inventory_2_outlined;
+          break;
+        case 'dispatched':
+          label = 'On the Way';
+          color = Colors.green;
+          icon = Icons.local_shipping_outlined;
+          break;
+        case 'delivered':
+          label = 'Delivered';
+          color = Colors.green;
+          icon = Icons.verified_rounded;
+          break;
+        case 'completed':
+          label = 'Completed';
+          color = AppColors.primaryGreen;
+          icon = Icons.check_circle_rounded;
+          break;
+        case 'cancelled':
+        case 'quote-declined':
+          label = order.status == 'cancelled' ? 'Cancelled' : 'Quote Declined';
+          color = Colors.red;
+          icon = Icons.cancel_outlined;
+          break;
+        default:
+          label = order.status.toUpperCase();
+          color = Colors.grey;
+      }
     }
 
     return Container(
@@ -382,7 +386,17 @@ class OrderCard extends StatelessWidget {
       case 'quote-submitted': 
       case 'quote-sent': 
       case 'quote-sent-to-customer': currentStepIndex = 3; break;
-      case 'customer-confirmed': currentStepIndex = 3; break;
+      case 'customer-confirmed':
+      case 'active':
+        // If we have a currentStepId, try to match it
+        if (order.currentStepId == 'raw_material') {
+          currentStepIndex = 4;
+        } else if (order.currentStepId == 'production') {
+          currentStepIndex = 4;
+        } else {
+          currentStepIndex = 3;
+        }
+        break;
       case 'in-production': currentStepIndex = 4; break;
       case 'ready-to-ship': currentStepIndex = 5; break;
       case 'dispatched': currentStepIndex = 6; break;
@@ -502,11 +516,21 @@ class OrderCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => context.push('/chat/${order.vendorId}'),
-                  icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
-                  label: const Text('Contact'),
+                  onPressed: () => context.push(
+                    '/chat/order/${order.id}',
+                    extra: {
+                      'orderId': order.id,
+                      'orderNumber': order.orderNumber.isNotEmpty
+                          ? order.orderNumber
+                          : order.id,
+                      'threadId':
+                          '${order.id}_CUSTOMER_${order.customerId}',
+                    },
+                  ),
+                  icon: const Icon(Icons.support_agent_rounded, size: 16),
+                  label: const Text('Support'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryGreen,
+                    backgroundColor: AppColors.gold,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

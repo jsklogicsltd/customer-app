@@ -1,37 +1,56 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class AppNotification {
   final String id;
   final String type;
-  final String icon;
   final String title;
   final String body;
-  final String timeAgo;
-  final dynamic timestamp;
-  bool read;
-  final String actionRoute;
+  final DateTime createdAt;
+  final bool isRead;
+  final String? referenceId;
+  final String? referenceType;
+  final String? recipientId;
+  final String? recipientType;
 
   AppNotification({
     required this.id,
     required this.type,
-    required this.icon,
     required this.title,
     required this.body,
-    required this.timeAgo,
-    this.timestamp,
-    required this.read,
-    required this.actionRoute,
+    required this.createdAt,
+    required this.isRead,
+    this.referenceId,
+    this.referenceType,
+    this.recipientId,
+    this.recipientType,
   });
 
-  factory AppNotification.fromMap(Map<String, dynamic> map) {
+  factory AppNotification.fromMap(Map<String, dynamic> map, String docId) {
     return AppNotification(
-      id: map['id'] ?? '',
+      id: docId,
       type: map['type'] ?? 'info',
-      icon: map['icon'] ?? '🔔',
       title: map['title'] ?? '',
       body: map['body'] ?? '',
-      timeAgo: map['timeAgo'] ?? 'Just now',
-      timestamp: map['timestamp'] ?? map['createdAt'],
-      read: map['read'] ?? false,
-      actionRoute: map['actionRoute'] ?? '',
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      isRead: map['isRead'] ?? false,
+      referenceId: map['referenceId'],
+      referenceType: map['referenceType'],
+      recipientId: map['recipientId'],
+      recipientType: map['recipientType'],
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'type': type,
+      'title': title,
+      'body': body,
+      'createdAt': createdAt,
+      'isRead': isRead,
+      'referenceId': referenceId,
+      'referenceType': referenceType,
+      'recipientId': recipientId,
+      'recipientType': recipientType,
+    };
   }
 }

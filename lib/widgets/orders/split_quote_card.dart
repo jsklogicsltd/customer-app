@@ -5,6 +5,7 @@ import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/split_order.dart';
 import '../../providers/order_provider.dart';
+import '../../providers/user_provider.dart';
 
 class SplitQuoteCard extends StatefulWidget {
   final SplitOrderModel splitOrder;
@@ -25,6 +26,9 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
 
   @override
   Widget build(BuildContext context) {
+    final role = context.watch<UserProvider>().user?.role ?? 'customer';
+    final isAdmin = role == 'admin';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -47,7 +51,7 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
             const Divider(height: 1),
             _buildProductInfo(),
             const Divider(height: 1),
-            _buildPricingBreakdown(),
+            _buildPricingBreakdown(context),
             const Divider(height: 1),
             _buildActions(context),
           ],
@@ -128,19 +132,34 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
     );
   }
 
-  Widget _buildPricingBreakdown() {
+  Widget _buildPricingBreakdown(BuildContext context) {
+    final role = context.read<UserProvider>().user?.role ?? 'customer';
+    final isAdmin = role == 'admin';
+
+    // Calculate display unit price (including commission for customers)
+    final totalQuantity = widget.splitOrder.totalQuantity > 0 ? widget.splitOrder.totalQuantity : 1;
+    final customerUnitPrice = widget.splitOrder.customerFinalPrice / totalQuantity;
+
     return Padding(
       padding: const EdgeInsets.all(14),
       child: Column(
         children: [
-          _buildDetailRow(
-              'Vendor Quote', formatPKR(widget.splitOrder.combinedQuoteTotal)),
-          if (widget.splitOrder.combinedCommission > 0)
+          if (isAdmin) ...[
             _buildDetailRow(
-              'Platform Fee',
-              '+ ${formatPKR(widget.splitOrder.combinedCommission)}',
-              valueColor: Colors.orange,
+                'Vendor Quote', formatPKR(widget.splitOrder.combinedQuoteTotal)),
+            if (widget.splitOrder.combinedCommission > 0)
+              _buildDetailRow(
+                'Platform Fee',
+                '+ ${formatPKR(widget.splitOrder.combinedCommission)}',
+                valueColor: Colors.orange,
+              ),
+          ] else ...[
+            _buildDetailRow(
+              'Price per Unit', 
+              formatPKR(customerUnitPrice)
             ),
+            _buildDetailRow('Qty', 'x ${widget.splitOrder.totalQuantity}'),
+          ],
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -160,14 +179,16 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              '(Inclusive of all charges)',
-              style: AppTypography.small.copyWith(color: AppColors.textMedium),
+          if (isAdmin) ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                '(Inclusive of all charges)',
+                style: AppTypography.small.copyWith(color: AppColors.textMedium),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -246,9 +267,13 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
 
   Future<void> _handleAccept(BuildContext context) async {
     try {
+      final user = context.read<UserProvider>().user;
       await context
           .read<OrderProvider>()
-          .acceptSplitQuote(widget.splitOrder.splitOrderId);
+          .acceptSplitQuote(
+            widget.splitOrder.splitOrderId,
+            customerName: user?.name,
+          );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -260,9 +285,13 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
 
   Future<void> _handleReject(BuildContext context) async {
     try {
+      final user = context.read<UserProvider>().user;
       await context
           .read<OrderProvider>()
-          .declineSplitQuote(widget.splitOrder.splitOrderId);
+          .declineSplitQuote(
+            widget.splitOrder.splitOrderId,
+            customerName: user?.name,
+          );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
