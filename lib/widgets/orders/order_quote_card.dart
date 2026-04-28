@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
@@ -7,6 +8,7 @@ import '../../models/order.dart';
 import '../../providers/order_provider.dart';
 import '../../providers/user_provider.dart';
 import '../common/cached_image.dart';
+import 'package:go_router/go_router.dart';
 
 /// Card for orders where admin has sent the final quote to the customer.
 /// Shows vendor quote, platform fee, customer total, and accept/reject buttons.
@@ -26,6 +28,52 @@ class OrderQuoteCard extends StatefulWidget {
 
 class _OrderQuoteCardState extends State<OrderQuoteCard> {
   bool _isActionLoading = false;
+  int _quantity = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _quantity = widget.order.quantity;
+    if (_quantity == 0) {
+      _fetchQuantity();
+    }
+  }
+
+  @override
+  void didUpdateWidget(OrderQuoteCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.order.id != oldWidget.order.id || widget.order.quantity != oldWidget.order.quantity) {
+      _quantity = widget.order.quantity;
+      if (_quantity == 0) {
+        _fetchQuantity();
+      }
+    }
+  }
+
+  Future<void> _fetchQuantity() async {
+    try {
+      final db = FirebaseFirestore.instance;
+      final doc = await db.collection('customRequests').doc(widget.order.id).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        final q = data['quantity'] ?? data['qty'] ?? data['totalQuantity'] ?? data['step1Quantity'];
+        if (q != null) {
+          int parsedQ = 0;
+          if (q is int) parsedQ = q;
+          if (q is String) parsedQ = int.tryParse(q) ?? 0;
+          if (q is num) parsedQ = q.toInt();
+          
+          if (parsedQ > 0 && mounted) {
+            setState(() {
+              _quantity = parsedQ;
+            });
+          }
+        }
+      }
+    } catch(e) {
+      debugPrint('Error fetching quantity for OrderQuoteCard: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,19 +85,25 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
       return _buildSplitQuoteCard(context);
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(5),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return InkWell(
+      onTap: () {
+        context.push('/quote-detail', extra: {
+          'order': widget.order,
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(5),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Column(
@@ -69,23 +123,30 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildSplitQuoteCard(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(5),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return InkWell(
+      onTap: () {
+        context.push('/quote-detail', extra: {
+          'order': widget.order,
+          'isSplitOrder': true,
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(5),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Column(
@@ -105,7 +166,7 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildSplitHeader() {
@@ -159,8 +220,8 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
         ? widget.order.splitCustomerFinalPrice 
         : widget.order.customerPrice;
 
-    final customerUnitPrice = widget.order.quantity > 0 
-        ? (finalPrice / widget.order.quantity) 
+    final customerUnitPrice = _quantity > 0 
+        ? (finalPrice / _quantity) 
         : widget.order.unitPrice;
 
     return Padding(
@@ -180,7 +241,7 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
               'Price per Unit', 
               formatPKR(customerUnitPrice)
             ),
-            _buildDetailRow('Qty', 'x ${widget.order.quantity}'),
+            _buildDetailRow('Qty', 'x $_quantity'),
           ],
           const SizedBox(height: 10),
           Row(
@@ -327,7 +388,7 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Qty: ${widget.order.quantity}',
+                  'Qty: $_quantity',
                   style:
                       AppTypography.small.copyWith(color: AppColors.textMedium),
                 ),
@@ -343,8 +404,8 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
     final role = context.read<UserProvider>().user?.role ?? 'customer';
     final isAdmin = role == 'admin';
 
-    final customerUnitPrice = widget.order.quantity > 0 
-        ? (widget.order.customerPrice / widget.order.quantity) 
+    final customerUnitPrice = _quantity > 0 
+        ? (widget.order.customerPrice / _quantity) 
         : widget.order.vendorQuote;
 
     return Padding(
@@ -364,7 +425,7 @@ class _OrderQuoteCardState extends State<OrderQuoteCard> {
               'Price per Unit', 
               formatPKR(customerUnitPrice)
             ),
-            _buildDetailRow('Qty', 'x ${widget.order.quantity}'),
+            _buildDetailRow('Qty', 'x $_quantity'),
           ],
           const SizedBox(height: 10),
           Row(

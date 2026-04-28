@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class OrderTimeline {
   final String step;
@@ -35,6 +36,11 @@ class TrackingStep {
   final String? expectedDate;
   final List<String> photos;
 
+  final String? qcStatus;
+  final String? qcFeedback;
+  final List<String> mediaUrls;
+  final int? percentage;
+
   const TrackingStep({
     required this.step,
     required this.title,
@@ -43,6 +49,10 @@ class TrackingStep {
     this.updatedAt,
     this.expectedDate,
     this.photos = const [],
+    this.qcStatus,
+    this.qcFeedback,
+    this.mediaUrls = const [],
+    this.percentage,
   });
 
   factory TrackingStep.fromMap(Map<String, dynamic> map) {
@@ -54,7 +64,11 @@ class TrackingStep {
       status:       s(map['status'], 'pending'),
       updatedAt:    map['updatedAt'],
       expectedDate: map['expectedDate'] is String ? map['expectedDate'] as String : null,
-      photos: (map['photos'] as List? ?? []).whereType<String>().toList(),
+      photos:       (map['photos'] as List? ?? []).whereType<String>().toList(),
+      qcStatus:     map['qcStatus'] as String?,
+      qcFeedback:   map['qcFeedback'] as String?,
+      mediaUrls:    (map['mediaUrls'] as List? ?? map['photos'] as List? ?? []).whereType<String>().toList(),
+      percentage:   (map['percentage'] as num?)?.toInt(),
     );
   }
 }
@@ -90,6 +104,7 @@ class OrderModel {
   final double commissionAmount;
   final dynamic rfqDeadline;
   final dynamic updatedAt;
+  final List<String> subOrders;
   
   // Split Order Fields
   final double splitTotalVendorCost;
@@ -130,7 +145,17 @@ class OrderModel {
     this.splitTotalVendorCost = 0,
     this.splitTotalCommission = 0,
     this.splitCustomerFinalPrice = 0,
+    this.subOrders = const [],
   });
+
+  // Alias for fromMap to match expected usage in some parts of the app
+  factory OrderModel.fromFirestore(DocumentSnapshot doc) {
+    return OrderModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+  }
+
+  // Getters to fix compilation errors
+  String get splitOrderId => id; // Assuming id is used as splitOrderId in some contexts
+  String get description => productName; // Fallback to productName
 
   factory OrderModel.fromMap(Map<String, dynamic> d, String id) {
     double toDouble(dynamic v) {
@@ -162,15 +187,15 @@ class OrderModel {
     return OrderModel(
       id:              id,
       orderNumber:     toStr(d['orderNumber']),
-      productName:     toStr(d['productName'], toStr(d['productTitle'])),
+      productName:     toStr(d['productName'], toStr(d['productTitle'], toStr(d['productType'], toStr(d['category'], 'Order #$id')))),
       mainPhotoUrl:    toStr(d['mainPhotoUrl'], toStr(d['productImage'])),
       productId:       toStr(d['productId']),
       vendorId:        toStr(d['vendorId']),
       customerId:      toStr(d['customerId']),
-      quantity:        toInt(d['quantity']),
+      quantity:        toInt(d['quantity'] ?? d['totalQuantity'] ?? d['qty'] ?? 0),
       unitPrice:       toDouble(d['unitPrice'] ?? d['pricePerUnit']),
-      totalAmount:     toDouble(d['totalAmount']),
-      confirmedPrice:  toDouble(d['confirmedPrice'] ?? d['customerPrice']),
+      totalAmount:     toDouble(d['totalAmount'] ?? d['confirmedPrice'] ?? d['customerFinalPrice'] ?? d['totalFinalPrice']),
+      confirmedPrice:  toDouble(d['confirmedPrice'] ?? d['customerFinalPrice'] ?? d['totalFinalPrice'] ?? d['customerPrice']),
       trackingNumber:  toStr(d['trackingNumber']),
       status:          toStr(d['status']),
       deliveryAddress: toStr(d['deliveryAddress']),
@@ -180,14 +205,15 @@ class OrderModel {
       vendorName:      toStr(d['vendorName']),
       progressPercent: toInt(d['progressPercent']),
       isSplitOrder:    d['isSplitOrder'] == true || d['isSplitOrder'] == 1 || d['isSplitOrder'] == 'true',
-      customerPrice:   toDouble(d['customerPrice']  ?? d['confirmedPrice']),
+      customerPrice:   toDouble(d['customerPrice']  ?? d['confirmedPrice'] ?? d['customerFinalPrice']),
       vendorQuote:     toDouble(d['vendorQuote']),
       commissionAmount:toDouble(d['commissionAmount']),
       rfqDeadline:     d['rfqDeadline'],
       updatedAt:       d['updatedAt'],
       splitTotalVendorCost: toDouble(d['splitTotalVendorCost']),
       splitTotalCommission: toDouble(d['splitTotalCommission']),
-      splitCustomerFinalPrice: toDouble(d['splitCustomerFinalPrice'] ?? d['customerPrice']),
+      splitCustomerFinalPrice: toDouble(d['splitCustomerFinalPrice'] ?? d['customerPrice'] ?? d['customerFinalPrice']),
+      subOrders:               (d['subOrders'] as List?)?.whereType<String>().toList() ?? [],
       timeline: (d['timeline'] as List?)
           ?.map((v) => OrderTimeline.fromMap(v))
           .toList() ?? [],

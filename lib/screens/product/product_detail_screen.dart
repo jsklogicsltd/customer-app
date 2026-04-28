@@ -13,6 +13,8 @@ import '../../widgets/common/cached_image.dart';
 import '../../widgets/common/rating_stars.dart';
 import '../../widgets/common/verified_badge.dart';
 
+import 'package:intl/intl.dart';
+
 class ProductDetailScreen extends StatefulWidget {
   final String productId;
   const ProductDetailScreen({super.key, required this.productId});
@@ -24,6 +26,21 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _currentImageIndex = 0;
   bool _descExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Increment product views
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    FirebaseFirestore.instance
+        .collection('products')
+        .doc(widget.productId)
+        .update({
+          'views': FieldValue.increment(1),
+          'dailyViews.$today': FieldValue.increment(1),
+        })
+        .catchError((e) => debugPrint('Error incrementing views: $e'));
+  }
 
   void _showFullScreenImage(BuildContext context, String imageUrl) {
     showDialog(
@@ -59,14 +76,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final reviewProvider = context.watch<ReviewProvider>();
 
     return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('products').doc(widget.productId).get(),
+      future: FirebaseFirestore.instance
+          .collection('products')
+          .doc(widget.productId)
+          .get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
 
         if (snapshot.hasError) {
-          return Scaffold(body: Center(child: Text('Error: ${snapshot.error}')));
+          return Scaffold(
+            body: Center(child: Text('Error: ${snapshot.error}')),
+          );
         }
 
         final doc = snapshot.data;
@@ -81,7 +105,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         final isSaved = userProvider.isProductSaved(product.id);
         final productReviews = reviewProvider.getReviews(product.id);
 
-        return _buildScreen(context, product, vendor, isSaved, productReviews, userProvider);
+        return _buildScreen(
+          context,
+          product,
+          isSaved,
+          productReviews,
+          userProvider,
+        );
       },
     );
   }
@@ -89,7 +119,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget _buildScreen(
     BuildContext context,
     Product product,
-    Vendor? vendor,
     bool isSaved,
     List productReviews,
     UserProvider userProvider,
@@ -107,8 +136,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               onTap: () => context.pop(),
               child: Container(
                 margin: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.white.withAlpha(220), shape: BoxShape.circle),
-                child: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: AppColors.textDark),
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(220),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 20,
+                  color: AppColors.textDark,
+                ),
               ),
             ),
             actions: [
@@ -117,9 +153,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: Container(
                   margin: const EdgeInsets.all(8),
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.white.withAlpha(220), shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(220),
+                    shape: BoxShape.circle,
+                  ),
                   child: Icon(
-                    isSaved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    isSaved
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
                     size: 20,
                     color: isSaved ? Colors.red : AppColors.textDark,
                   ),
@@ -131,37 +172,44 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 children: [
                   Positioned.fill(
                     child: GestureDetector(
-                      onTap: () => _showFullScreenImage(context, product.mainImageUrl),
+                      onTap: () =>
+                          _showFullScreenImage(context, product.mainImageUrl),
                       child: product.mainImageUrl.isNotEmpty
-                        ? Image.network(
-                            product.mainImageUrl,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, progress) {
-                              if (progress == null) return child;
-                              return Container(
-                                height: 320,
-                                child: const Center(
-                                  child: CircularProgressIndicator(
-                                    color: Color(0xFFF5A623),
+                          ? Image.network(
+                              product.mainImageUrl,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return Container(
+                                  height: 320,
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Color(0xFFF5A623),
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                            errorBuilder: (context, error, stack) {
-                              return Container(
-                                height: 320,
-                                color: Colors.grey.shade100,
-                                child: const Icon(Icons.image_not_supported,
-                                  size: 64, color: Colors.grey),
-                              );
-                            },
-                          )
-                        : Container(
-                            height: 320,
-                            color: Colors.grey.shade100,
-                            child: const Icon(Icons.image_outlined,
-                              size: 64, color: Colors.grey),
-                          ),
+                                );
+                              },
+                              errorBuilder: (context, error, stack) {
+                                return Container(
+                                  height: 320,
+                                  color: Colors.grey.shade100,
+                                  child: const Icon(
+                                    Icons.image_not_supported,
+                                    size: 64,
+                                    color: Colors.grey,
+                                  ),
+                                );
+                              },
+                            )
+                          : Container(
+                              height: 320,
+                              color: Colors.grey.shade100,
+                              child: const Icon(
+                                Icons.image_outlined,
+                                size: 64,
+                                color: Colors.grey,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -177,7 +225,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 if (product.images.isNotEmpty)
                   Container(
                     color: Theme.of(context).cardColor,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: SizedBox(
                       height: 80,
                       child: ListView.builder(
@@ -185,7 +236,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         itemCount: product.images.length,
                         itemBuilder: (context, index) {
                           return GestureDetector(
-                            onTap: () => _showFullScreenImage(context, product.images[index]),
+                            onTap: () => _showFullScreenImage(
+                              context,
+                              product.images[index],
+                            ),
                             child: Padding(
                               padding: const EdgeInsets.only(right: 8),
                               child: ClipRRect(
@@ -220,22 +274,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Expanded(child: Text(product.name, style: AppTypography.h2.copyWith(fontWeight: FontWeight.bold))),
+                          Expanded(
+                            child: Text(
+                              product.name,
+                              style: AppTypography.h2.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                           // SECTION 6 — Stock Status
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: product.isInStock 
-                                ? Colors.green.shade50 
-                                : Colors.red.shade50,
+                              color: product.isInStock
+                                  ? Colors.green.shade50
+                                  : Colors.red.shade50,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
                               product.isInStock ? 'In Stock' : 'Out of Stock',
                               style: TextStyle(
-                                color: product.isInStock 
-                                  ? Colors.green 
-                                  : Colors.red,
+                                color: product.isInStock
+                                    ? Colors.green
+                                    : Colors.red,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -248,7 +312,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       const SizedBox(height: 8),
                       Text(
                         product.description,
-                        style: AppTypography.body.copyWith(color: AppColors.textMedium),
+                        style: AppTypography.body.copyWith(
+                          color: AppColors.textMedium,
+                        ),
                       ),
                     ],
                   ),
@@ -263,7 +329,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('SPECIFICATIONS', style: AppTypography.small.copyWith(color: const Color(0xFFF5A623), fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                      Text(
+                        'SPECIFICATIONS',
+                        style: AppTypography.small.copyWith(
+                          color: const Color(0xFFF5A623),
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       if (product.category.isNotEmpty)
                         _specRow('Category', product.category),
@@ -271,7 +344,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         _specRow('Product Type', product.productType),
                       if (product.material.isNotEmpty)
                         _specRow('Material', product.material),
-                      
+
                       if (product.availableSizes.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -280,30 +353,50 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             children: [
                               SizedBox(
                                 width: 130,
-                                child: Text('Available Sizes',
-                                  style: AppTypography.body.copyWith(color: AppColors.textLight)),
+                                child: Text(
+                                  'Available Sizes',
+                                  style: AppTypography.body.copyWith(
+                                    color: AppColors.textLight,
+                                  ),
+                                ),
                               ),
                               Expanded(
                                 child: Wrap(
                                   spacing: 8,
                                   runSpacing: 4,
-                                  children: product.availableSizes.map((size) =>
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        border: Border.all(color: Colors.grey.shade300),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(size, style: AppTypography.caption.copyWith(color: AppColors.textDark, fontWeight: FontWeight.w500)),
-                                    )
-                                  ).toList(),
+                                  children: product.availableSizes
+                                      .map(
+                                        (size) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            border: Border.all(
+                                              color: Colors.grey.shade300,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            size,
+                                            style: AppTypography.caption
+                                                .copyWith(
+                                                  color: AppColors.textDark,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      
+
                       if (product.colors.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -312,8 +405,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             children: [
                               SizedBox(
                                 width: 130,
-                                child: Text('Colors',
-                                  style: AppTypography.body.copyWith(color: AppColors.textLight)),
+                                child: Text(
+                                  'Colors',
+                                  style: AppTypography.body.copyWith(
+                                    color: AppColors.textLight,
+                                  ),
+                                ),
                               ),
                               Expanded(
                                 child: Wrap(
@@ -322,7 +419,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     int? colorValue;
                                     try {
                                       if (colorStr.startsWith('#')) {
-                                        colorValue = int.parse(colorStr.replaceFirst('#', '0xFF'));
+                                        colorValue = int.parse(
+                                          colorStr.replaceFirst('#', '0xFF'),
+                                        );
                                       } else {
                                         colorValue = int.tryParse(colorStr);
                                       }
@@ -332,12 +431,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                       width: 22,
                                       height: 22,
                                       decoration: BoxDecoration(
-                                        color: colorValue != null ? Color(colorValue) : Colors.grey,
+                                        color: colorValue != null
+                                            ? Color(colorValue)
+                                            : Colors.grey,
                                         shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.grey.shade200, width: 1.5),
+                                        border: Border.all(
+                                          color: Colors.grey.shade200,
+                                          width: 1.5,
+                                        ),
                                         boxShadow: [
-                                          BoxShadow(color: Colors.black.withAlpha(10), blurRadius: 2, spreadRadius: 0.5)
-                                        ]
+                                          BoxShadow(
+                                            color: Colors.black.withAlpha(10),
+                                            blurRadius: 2,
+                                            spreadRadius: 0.5,
+                                          ),
+                                        ],
                                       ),
                                     );
                                   }).toList(),
@@ -363,20 +471,36 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('SEARCH TAGS', style: AppTypography.small.copyWith(color: const Color(0xFFF5A623), fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                        Text(
+                          'SEARCH TAGS',
+                          style: AppTypography.small.copyWith(
+                            color: const Color(0xFFF5A623),
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
-                          children: product.searchTags.map((tag) =>
-                            Chip(
-                              label: Text('##$tag'),
-                              backgroundColor: Colors.white,
-                              labelStyle: const TextStyle(color: Color(0xFF8B6B13), fontSize: 13),
-                              side: const BorderSide(color: Color(0xFFD4C18D)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            )
-                          ).toList(),
+                          children: product.searchTags
+                              .map(
+                                (tag) => Chip(
+                                  label: Text('##$tag'),
+                                  backgroundColor: Colors.white,
+                                  labelStyle: const TextStyle(
+                                    color: Color(0xFF8B6B13),
+                                    fontSize: 13,
+                                  ),
+                                  side: const BorderSide(
+                                    color: Color(0xFFD4C18D),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                              )
+                              .toList(),
                         ),
                       ],
                     ),
@@ -391,73 +515,51 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('DELIVERY & PACKAGING', style: AppTypography.small.copyWith(color: const Color(0xFFF5A623), fontWeight: FontWeight.bold, letterSpacing: 1.1)),
+                      Text(
+                        'DELIVERY & PACKAGING',
+                        style: AppTypography.small.copyWith(
+                          color: const Color(0xFFF5A623),
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
                       const SizedBox(height: 16),
-                      _deliveryRow(Icons.local_shipping_outlined, 'Delivery To', product.deliveryTo),
+                      _deliveryRow(
+                        Icons.local_shipping_outlined,
+                        'Delivery To',
+                        product.deliveryTo,
+                      ),
                       const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                      _deliveryRow(Icons.access_time, 'Lead Time', product.leadTime),
+                      _deliveryRow(
+                        Icons.access_time,
+                        'Lead Time',
+                        product.leadTime,
+                      ),
                       const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                      _deliveryRow(Icons.inventory_2_outlined, 'MOQ', '${product.moq} units minimum'),
+                      _deliveryRow(
+                        Icons.inventory_2_outlined,
+                        'MOQ',
+                        '${product.moq} units minimum',
+                      ),
                       const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                      _deliveryRow(Icons.redeem_outlined, 'Packaging', product.packagingType),
+                      _deliveryRow(
+                        Icons.redeem_outlined,
+                        'Packaging',
+                        product.packagingType,
+                      ),
                       const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                      _deliveryRow(Icons.check_circle_outline, 'Export Compliant', product.isExportCompliant ? 'Yes' : 'No'),
+                      _deliveryRow(
+                        Icons.check_circle_outline,
+                        'Export Compliant',
+                        product.isExportCompliant ? 'Yes' : 'No',
+                      ),
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 8),
 
-                // Vendor Card
-                if (vendor != null)
-                  Container(
-                    color: Theme.of(context).cardColor,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Sold by', style: AppTypography.small.copyWith(color: AppColors.textMedium)),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            CircleAvatar(radius: 24, backgroundImage: NetworkImage(vendor.avatar)),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(children: [
-                                    Text(vendor.name, style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
-                                    const SizedBox(width: 6),
-                                    if (vendor.verified) const VerifiedBadge(small: true),
-                                  ]),
-                                  Text('${vendor.city}, ${vendor.province}', style: AppTypography.small),
-                                  Row(children: [
-                                    RatingStars(rating: vendor.rating.toDouble(), compact: true),
-                                    Text(' · ${vendor.totalOrders} orders · ${vendor.responseRate}% response', style: AppTypography.caption),
-                                  ]),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton.icon(
-                                onPressed: () => context.push('/vendor/${vendor.id}'),
-                                icon: const Icon(Icons.store_outlined, size: 16),
-                                label: const Text('View Vendor Profile'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
 
-                const SizedBox(height: 8),
 
                 // Reviews
                 Container(
@@ -469,20 +571,33 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Customer Reviews (${product.reviewCount})', style: AppTypography.h3),
+                          Text(
+                            'Customer Reviews (${product.reviewCount})',
+                            style: AppTypography.h3,
+                          ),
                           TextButton(
-                            onPressed: () => context.push('/product/${product.id}/reviews'),
-                            child: Text('View All', style: AppTypography.small.copyWith(color: AppColors.primaryGreen)),
+                            onPressed: () =>
+                                context.push('/product/${product.id}/reviews'),
+                            child: Text(
+                              'View All',
+                              style: AppTypography.small.copyWith(
+                                color: AppColors.primaryGreen,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      ...productReviews.take(2).map((r) => _ReviewItem(
-                        name: r.customerName,
-                        avatar: r.customerAvatar,
-                        rating: r.rating.toDouble(),
-                        comment: r.comment,
-                        timeAgo: r.weeksAgo,
-                      )),
+                      ...productReviews
+                          .take(2)
+                          .map(
+                            (r) => _ReviewItem(
+                              name: r.customerName,
+                              avatar: r.customerAvatar,
+                              rating: r.rating.toDouble(),
+                              comment: r.comment,
+                              timeAgo: r.weeksAgo,
+                            ),
+                          ),
                     ],
                   ),
                 ),
@@ -499,20 +614,29 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
-          boxShadow: [BoxShadow(color: Colors.black.withAlpha(20), blurRadius: 10, offset: const Offset(0, -2))],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(20),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
         ),
         child: Row(
           children: [
             Expanded(
               child: OutlinedButton(
                 onPressed: () {
-                  context.push('/chat', extra: {
-                    'chatType': 'product',
-                    'productId': product.id,
-                    'productName': product.name,
-                    'vendorId': product.vendorId,
-                    'vendorName': product.vendorName,
-                  });
+                  context.push(
+                    '/chat',
+                    extra: {
+                      'chatType': 'product',
+                      'productId': product.id,
+                      'productName': product.name,
+                      'vendorId': product.vendorId,
+                      'vendorName': product.vendorName,
+                    },
+                  );
                 },
                 child: const Text('Contact Support'),
               ),
@@ -537,9 +661,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         children: [
           Icon(icon, size: 20, color: const Color(0xFF1B5E20)),
           const SizedBox(width: 12),
-          Text(label, style: AppTypography.body.copyWith(color: AppColors.textMedium)),
+          Text(
+            label,
+            style: AppTypography.body.copyWith(color: AppColors.textMedium),
+          ),
           const Spacer(),
-          Text(value, style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: AppTypography.bodyMedium.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -554,12 +686,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         children: [
           SizedBox(
             width: 130,
-            child: Text(label,
-              style: AppTypography.body.copyWith(color: AppColors.textLight)),
+            child: Text(
+              label,
+              style: AppTypography.body.copyWith(color: AppColors.textLight),
+            ),
           ),
           Expanded(
-            child: Text(value,
-              style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w500)),
+            child: Text(
+              value,
+              style: AppTypography.bodyMedium.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),
@@ -582,9 +720,18 @@ class _DetailBox extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Text(label, style: AppTypography.caption.copyWith(color: AppColors.textMedium)),
+            Text(
+              label,
+              style: AppTypography.caption.copyWith(
+                color: AppColors.textMedium,
+              ),
+            ),
             const SizedBox(height: 2),
-            Text(value, style: AppTypography.small.copyWith(fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+            Text(
+              value,
+              style: AppTypography.small.copyWith(fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -595,7 +742,13 @@ class _DetailBox extends StatelessWidget {
 class _ReviewItem extends StatelessWidget {
   final String name, avatar, comment, timeAgo;
   final double rating;
-  const _ReviewItem({required this.name, required this.avatar, required this.rating, required this.comment, required this.timeAgo});
+  const _ReviewItem({
+    required this.name,
+    required this.avatar,
+    required this.rating,
+    required this.comment,
+    required this.timeAgo,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -612,14 +765,24 @@ class _ReviewItem extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(name, style: AppTypography.small.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      name,
+                      style: AppTypography.small.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     const Spacer(),
                     Text(timeAgo, style: AppTypography.caption),
                   ],
                 ),
                 RatingStars(rating: rating, compact: true),
                 const SizedBox(height: 4),
-                Text(comment, style: AppTypography.small.copyWith(color: AppColors.textMedium)),
+                Text(
+                  comment,
+                  style: AppTypography.small.copyWith(
+                    color: AppColors.textMedium,
+                  ),
+                ),
               ],
             ),
           ),

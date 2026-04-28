@@ -50,9 +50,10 @@ class QuoteProvider extends ChangeNotifier {
           return QuoteModel.fromFirestore(doc.data(), doc.id);
         }).toList();
         
-        pendingQuotes = allQuotes.where((q) => 
-          q.status == 'pending' || q.status == 'sent-to-customer'
-        ).toList();
+        pendingQuotes = allQuotes.where((q) {
+          final s = q.status.toLowerCase().replaceAll('_', '-');
+          return s == 'pending' || s == 'sent-to-customer' || s == 'quote-sent';
+        }).toList();
       } catch (e) {
         debugPrint('>>> QuoteProvider PARSING ERROR: $e');
       } finally {

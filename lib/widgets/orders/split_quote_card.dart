@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
-import '../../models/split_order.dart';
+
 import '../../providers/order_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../models/order.dart';
+import 'package:go_router/go_router.dart';
 
 class SplitQuoteCard extends StatefulWidget {
-  final SplitOrderModel splitOrder;
+  final OrderModel order;
   final VoidCallback? onAccepted;
 
   const SplitQuoteCard({
     super.key,
-    required this.splitOrder,
+    required this.order,
     this.onAccepted,
   });
 
@@ -23,25 +26,78 @@ class SplitQuoteCard extends StatefulWidget {
 
 class _SplitQuoteCardState extends State<SplitQuoteCard> {
   final bool _isActionLoading = false;
+  int _quantity = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _quantity = widget.order.quantity;
+    if (_quantity == 0) {
+      _fetchQuantity();
+    }
+  }
+
+  @override
+  void didUpdateWidget(SplitQuoteCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.order.id != oldWidget.order.id || widget.order.quantity != oldWidget.order.quantity) {
+      _quantity = widget.order.quantity;
+      if (_quantity == 0) {
+        _fetchQuantity();
+      }
+    }
+  }
+
+  Future<void> _fetchQuantity() async {
+    try {
+      final db = FirebaseFirestore.instance;
+      final doc = await db.collection('customRequests').doc(widget.order.id).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        final q = data['quantity'] ?? data['qty'] ?? data['totalQuantity'] ?? data['step1Quantity'];
+        if (q != null) {
+          int parsedQ = 0;
+          if (q is int) parsedQ = q;
+          if (q is String) parsedQ = int.tryParse(q) ?? 0;
+          if (q is num) parsedQ = q.toInt();
+          
+          if (parsedQ > 0 && mounted) {
+            setState(() {
+              _quantity = parsedQ;
+            });
+          }
+        }
+      }
+    } catch(e) {
+      debugPrint('Error fetching quantity for SplitQuoteCard: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final role = context.watch<UserProvider>().user?.role ?? 'customer';
     final isAdmin = role == 'admin';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(5),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return InkWell(
+      onTap: () {
+        context.push('/quote-detail', extra: {
+          'order': widget.order,
+          'isSplitOrder': true,
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(5),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Column(
@@ -57,7 +113,7 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildHeader() {
@@ -82,9 +138,9 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
             ),
           ),
           Text(
-            widget.splitOrder.orderNumber.isEmpty
-                ? 'Order #${widget.splitOrder.splitOrderId.substring(0, 8)}'
-                : widget.splitOrder.orderNumber,
+            widget.order.orderNumber.isEmpty
+                ? 'Order #${widget.order.id.substring(0, 8)}'
+                : widget.order.orderNumber,
             style: AppTypography.small.copyWith(color: AppColors.textMedium),
           ),
         ],
@@ -99,7 +155,7 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            widget.splitOrder.description,
+            widget.order.productName,
             style:
                 AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold),
             maxLines: 2,
@@ -112,7 +168,7 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
                   size: 16, color: AppColors.textMedium),
               const SizedBox(width: 4),
               Text(
-                '${widget.splitOrder.vendorCount} vendors',
+                'Multiple vendors',
                 style:
                     AppTypography.small.copyWith(color: AppColors.textMedium),
               ),
@@ -121,7 +177,7 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
                   size: 16, color: AppColors.textMedium),
               const SizedBox(width: 4),
               Text(
-                'Qty: ${widget.splitOrder.totalQuantity}',
+                'Qty: $_quantity',
                 style:
                     AppTypography.small.copyWith(color: AppColors.textMedium),
               ),
@@ -137,8 +193,10 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
     final isAdmin = role == 'admin';
 
     // Calculate display unit price (including commission for customers)
-    final totalQuantity = widget.splitOrder.totalQuantity > 0 ? widget.splitOrder.totalQuantity : 1;
-    final customerUnitPrice = widget.splitOrder.customerFinalPrice / totalQuantity;
+    final totalQuantity = _quantity > 0 ? _quantity : 1;
+    final customerUnitPrice = widget.order.splitCustomerFinalPrice > 0 
+        ? widget.order.splitCustomerFinalPrice / totalQuantity 
+        : widget.order.confirmedPrice / totalQuantity;
 
     return Padding(
       padding: const EdgeInsets.all(14),
@@ -146,11 +204,11 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
         children: [
           if (isAdmin) ...[
             _buildDetailRow(
-                'Vendor Quote', formatPKR(widget.splitOrder.combinedQuoteTotal)),
-            if (widget.splitOrder.combinedCommission > 0)
+                'Vendor Quote', formatPKR(widget.order.splitTotalVendorCost)),
+            if (widget.order.splitTotalCommission > 0)
               _buildDetailRow(
                 'Platform Fee',
-                '+ ${formatPKR(widget.splitOrder.combinedCommission)}',
+                '+ ${formatPKR(widget.order.splitTotalCommission)}',
                 valueColor: Colors.orange,
               ),
           ] else ...[
@@ -158,7 +216,7 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
               'Price per Unit', 
               formatPKR(customerUnitPrice)
             ),
-            _buildDetailRow('Qty', 'x ${widget.splitOrder.totalQuantity}'),
+            _buildDetailRow('Qty', 'x $_quantity'),
           ],
           const SizedBox(height: 10),
           Row(
@@ -170,7 +228,7 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
                     .copyWith(fontWeight: FontWeight.bold),
               ),
               Text(
-                formatPKR(widget.splitOrder.customerFinalPrice),
+                formatPKR(widget.order.splitCustomerFinalPrice > 0 ? widget.order.splitCustomerFinalPrice : widget.order.confirmedPrice),
                 style: AppTypography.h3.copyWith(
                   color: AppColors.primaryGreen,
                   fontWeight: FontWeight.bold,
@@ -271,7 +329,7 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
       await context
           .read<OrderProvider>()
           .acceptSplitQuote(
-            widget.splitOrder.splitOrderId,
+            widget.order.id,
             customerName: user?.name,
           );
     } catch (e) {
@@ -289,7 +347,7 @@ class _SplitQuoteCardState extends State<SplitQuoteCard> {
       await context
           .read<OrderProvider>()
           .declineSplitQuote(
-            widget.splitOrder.splitOrderId,
+            widget.order.id,
             customerName: user?.name,
           );
     } catch (e) {

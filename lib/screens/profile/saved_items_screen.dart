@@ -5,7 +5,7 @@ import '../../providers/user_provider.dart';
 import '../../providers/product_provider.dart';
 import '../../providers/vendor_provider.dart';
 import '../../widgets/cards/product_card.dart';
-import '../../widgets/cards/vendor_card.dart';
+import '../../widgets/cards/product_card.dart';
 import '../../widgets/common/empty_state.dart';
 
 class SavedItemsScreen extends StatefulWidget {
@@ -22,7 +22,7 @@ class _SavedItemsScreenState extends State<SavedItemsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 1, vsync: this);
   }
 
   @override
@@ -35,7 +35,6 @@ class _SavedItemsScreenState extends State<SavedItemsScreen>
   Widget build(BuildContext context) {
     final userProvider = context.watch<UserProvider>();
     final productProvider = context.watch<ProductProvider>();
-    final vendorProvider = context.watch<VendorProvider>();
     final user = userProvider.user;
 
     if (user == null) {
@@ -43,7 +42,6 @@ class _SavedItemsScreenState extends State<SavedItemsScreen>
     }
 
     final savedProducts = productProvider.getSaved(user.savedProducts);
-    final savedVendors = vendorProvider.getSaved(user.savedVendors);
 
     return Scaffold(
       backgroundColor: AppColors.bgLight,
@@ -58,7 +56,6 @@ class _SavedItemsScreenState extends State<SavedItemsScreen>
           indicatorColor: AppColors.primaryGreen,
           tabs: [
             Tab(text: 'Products (${savedProducts.length})'),
-            Tab(text: 'Vendors (${savedVendors.length})'),
           ],
         ),
       ),
@@ -75,13 +72,6 @@ class _SavedItemsScreenState extends State<SavedItemsScreen>
                   ),
                   itemCount: savedProducts.length,
                   itemBuilder: (ctx, i) => ProductCard(product: savedProducts[i]),
-                ),
-          // Vendors
-          savedVendors.isEmpty
-              ? const EmptyState(emoji: '🏪', title: 'No Saved Vendors', subtitle: 'Follow vendors to see them here')
-              : ListView.builder(
-                  itemCount: savedVendors.length,
-                  itemBuilder: (ctx, i) => VendorCard(vendor: savedVendors[i]),
                 ),
         ],
       ),

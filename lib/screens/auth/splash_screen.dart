@@ -67,8 +67,8 @@ class _SplashScreenState extends State<SplashScreen>
       debugPrint('SplashScreen: AUTH ONLY detected (missing Firestore record). Redirecting to Setup.');
       context.go('/profile-setup');
     } else {
-      debugPrint('SplashScreen: No user found. Navigating to language selection.');
-      context.go('/language');
+      debugPrint('SplashScreen: No user found. Navigating to onboarding.');
+      context.go('/onboarding');
     }
   }
 

@@ -86,11 +86,12 @@ class ChatProvider extends ChangeNotifier {
     required String orderId,
     required String text,
     String customerName = '',
+    String? threadId,
   }) async {
     final user = _auth.currentUser;
     if (user == null || text.trim().isEmpty) return;
 
-    final threadId = ChatMessage.buildThreadId(
+    final resolvedThreadId = threadId ?? ChatMessage.buildOrderThreadId(
       orderId: orderId,
       customerId: user.uid,
     );
@@ -103,7 +104,7 @@ class ChatProvider extends ChangeNotifier {
     // 1. Optimistic insert — show message instantly
     final optimistic = ChatMessage(
       id: 'pending_${now.millisecondsSinceEpoch}',
-      threadId: threadId,
+      threadId: resolvedThreadId,
       threadType: 'customer_admin',
       orderId: orderId,
       senderId: user.uid,
@@ -120,7 +121,7 @@ class ChatProvider extends ChangeNotifier {
       isPending: true,
     );
 
-    _threads[threadId] = [...(_threads[threadId] ?? []), optimistic];
+    _threads[resolvedThreadId] = [...(_threads[resolvedThreadId] ?? []), optimistic];
     notifyListeners();
 
     // 2. Resolve real admin UID (cached after first call)
@@ -133,7 +134,7 @@ class ChatProvider extends ChangeNotifier {
     try {
       final msg = ChatMessage(
         id: '',
-        threadId: threadId,
+        threadId: resolvedThreadId,
         threadType: 'customer_admin',
         orderId: orderId,
         senderId: user.uid,

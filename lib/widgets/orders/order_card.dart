@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/order.dart';
+import '../../models/chat_message.dart';
 import '../../providers/order_provider.dart';
 import '../common/cached_image.dart';
 
@@ -38,8 +39,8 @@ class OrderCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (order.status == 'quote-sent') _buildQuoteBanner(context),
-            _buildHeader(),
+            if (order.status.toLowerCase().replaceAll('_', '-') == 'quote-sent') _buildQuoteBanner(context),
+            // _buildHeader(), // Removed header as it's merged into body
             const Divider(height: 1, thickness: 1),
             _buildBody(),
             if (isActive) ...[
@@ -98,77 +99,88 @@ class OrderCard extends StatelessWidget {
     IconData icon = Icons.info_outline;
 
     // Prioritize dynamic tracking step title if available for active orders
-    if (order.currentStepTitle.isNotEmpty && 
-        (order.status == 'active' || order.status == 'in-production' || order.status == 'customer-confirmed')) {
-      label = order.currentStepTitle;
-      color = AppColors.primaryGreen;
-      icon = Icons.local_shipping_outlined;
+    final normalizedStatus = order.status.toLowerCase().replaceAll('_', '-');
+    final activeStatuses = ['active', 'in-production', 'customer-confirmed', 'ready-to-ship'];
+    if (order.currentStepTitle.isNotEmpty && activeStatuses.contains(normalizedStatus)) {
+      
+      // NEW: Check for specific QC statuses in tracking steps for precise badging
+      final hasRejected = order.trackingSteps.any((s) => s.status == 'rejected');
+      final hasUnderReview = order.trackingSteps.any((s) => s.status == 'under_review');
+
+      if (hasRejected) {
+        label = 'Action Required';
+        color = Colors.red;
+        icon = Icons.warning_amber_rounded;
+      } else if (hasUnderReview) {
+        label = 'Quality Check';
+        color = const Color(0xFFC9A93C);
+        icon = Icons.fact_check_outlined;
+      } else {
+        label = order.currentStepTitle;
+        
+        // Match colors from screenshot
+        if (label.toLowerCase().contains('production')) {
+          color = Colors.orange.shade800;
+          icon = Icons.precision_manufacturing_outlined;
+        } else if (label.toLowerCase().contains('qc')) {
+          color = Colors.blue.shade700;
+          icon = Icons.fact_check_outlined;
+        } else {
+          color = AppColors.primaryGreen;
+          icon = Icons.local_shipping_outlined;
+        }
+      }
     } else {
-      switch (order.status) {
+    switch (normalizedStatus) {
         case 'pending-approval':
-          label = 'Waiting for Admin Approval';
+          label = 'Pending';
           color = Colors.orange;
           icon = Icons.hourglass_empty_rounded;
           break;
         case 'vendor-notified':
-          label = 'Sent to Vendor';
+          label = 'Notified';
           color = Colors.blue;
           icon = Icons.send_rounded;
           break;
         case 'vendor-confirmed':
-          label = 'Vendor Confirmed';
+          label = 'Confirmed';
           color = Colors.green;
           icon = Icons.check_circle_outline;
           break;
-        case 'quote-submitted':
-          label = 'Quote Under Review';
-          color = Colors.orange;
-          icon = Icons.rate_review_outlined;
-          break;
         case 'quote-sent':
         case 'quote-sent-to-customer':
-          label = 'Quote Ready — Review Now';
+          label = 'Quote Ready';
           color = Colors.orange;
           icon = Icons.receipt_long_rounded;
           break;
         case 'customer-confirmed':
-          label = 'Order Confirmed';
+          label = 'Active';
           color = Colors.green;
           icon = Icons.check_circle_outline;
           break;
         case 'in-production':
           label = 'In Production';
-          color = Colors.blue;
+          color = Colors.orange.shade800;
           icon = Icons.precision_manufacturing_outlined;
           break;
-        case 'ready-to-ship':
-          label = 'Ready to Ship';
-          color = Colors.orange;
-          icon = Icons.inventory_2_outlined;
-          break;
-        case 'dispatched':
-          label = 'On the Way';
-          color = Colors.green;
-          icon = Icons.local_shipping_outlined;
-          break;
-        case 'delivered':
-          label = 'Delivered';
-          color = Colors.green;
-          icon = Icons.verified_rounded;
+        case 'in-qc':
+          label = 'In QC';
+          color = Colors.blue.shade700;
+          icon = Icons.fact_check_outlined;
           break;
         case 'completed':
           label = 'Completed';
-          color = AppColors.primaryGreen;
+          color = const Color(0xFF00C853); // Bright green like screenshot
           icon = Icons.check_circle_rounded;
           break;
         case 'cancelled':
         case 'quote-declined':
-          label = order.status == 'cancelled' ? 'Cancelled' : 'Quote Declined';
+          label = order.status == 'cancelled' ? 'Cancelled' : 'Declined';
           color = Colors.red;
           icon = Icons.cancel_outlined;
           break;
         default:
-          label = order.status.toUpperCase();
+          label = order.status.toUpperCase().replaceAll('_', ' ');
           color = Colors.grey;
       }
     }
@@ -195,55 +207,124 @@ class OrderCard extends StatelessWidget {
   }
 
   Widget _buildBody() {
+    // Dynamic progress calculation for "Real" tracking
+    int calculatedPercent = order.progressPercent;
+    
+    if (order.status == 'completed' || order.status == 'delivered') {
+      calculatedPercent = 100;
+    } else {
+      // 1. Try to find the latest completed step's percentage (Real tracking)
+      if (order.trackingSteps.isNotEmpty) {
+        // Find the last completed step
+        int lastCompletedIndex = -1;
+        for (int i = 0; i < order.trackingSteps.length; i++) {
+          if (order.trackingSteps[i].status == 'completed') {
+            lastCompletedIndex = i;
+          }
+        }
+
+        if (lastCompletedIndex != -1) {
+          final step = order.trackingSteps[lastCompletedIndex];
+          if (step.percentage != null && step.percentage! > 0) {
+            calculatedPercent = step.percentage!;
+          } else {
+            // Fallback: index-based proxy
+            calculatedPercent = (((lastCompletedIndex + 1) / order.trackingSteps.length) * 100).round();
+          }
+        }
+      } 
+      
+      // 2. If it's still 0 or no tracking steps, check timeline
+      if (calculatedPercent == 0 && order.timeline.isNotEmpty) {
+        final completedTimeline = order.timeline.where((t) => t.completed).length;
+        calculatedPercent = ((completedTimeline / order.timeline.length) * 100).round();
+      }
+
+      // 3. Fallback based on status stages (The "stages" approach)
+      // Updated to match detail view's calculation (e.g., 3/8 steps ≈ 38%)
+      if (calculatedPercent == 0 || (calculatedPercent < 10 && order.status == 'in-production')) {
+        switch (order.status) {
+          case 'pending-approval': calculatedPercent = 12; break;
+          case 'vendor-notified': calculatedPercent = 25; break;
+          case 'vendor-confirmed': calculatedPercent = 30; break;
+          case 'quote-sent': 
+          case 'quote-sent-to-customer': calculatedPercent = 35; break;
+          case 'customer-confirmed': 
+          case 'active': calculatedPercent = 38; break; // Synced with detail view
+          case 'in-production': calculatedPercent = 60; break;
+          case 'in-qc': calculatedPercent = 75; break;
+          case 'ready-to-ship': calculatedPercent = 85; break;
+          case 'dispatched': calculatedPercent = 92; break;
+        }
+      }
+      
+      // Override if the explicit progressPercent is higher (manual override)
+      if (order.progressPercent > calculatedPercent) {
+        calculatedPercent = order.progressPercent;
+      }
+    }
+
+    final progress = (calculatedPercent / 100).clamp(0.0, 1.0);
+    final idText = order.orderNumber.isNotEmpty ? order.orderNumber : 'ID: ${order.id.substring(0, 8).toUpperCase()}';
+
     return Padding(
-      padding: const EdgeInsets.all(14),
-      child: Row(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: AppCachedImage(
-              url: order.mainPhotoUrl,
-              width: 70,
-              height: 70,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  order.productName,
-                  style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Order placed: ${formatDate(order.createdAt)}',
-                  style: AppTypography.caption.copyWith(color: AppColors.textMedium),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Qty: ${order.quantity}',
-                      style: AppTypography.small.copyWith(color: AppColors.textMedium),
+                      order.productName,
+                      style: AppTypography.h3.copyWith(fontSize: 16),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 4),
                     Text(
-                      isActive && order.confirmedPrice > 0 
-                        ? formatPKR(order.confirmedPrice)
-                        : formatPKR(order.totalAmount),
-                      style: AppTypography.price.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primaryGreen,
-                      ),
+                      'ID: $idText',
+                      style: AppTypography.caption.copyWith(color: AppColors.textLight),
                     ),
                   ],
                 ),
-              ],
+              ),
+              const SizedBox(width: 8),
+              _buildStatusBadge(),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Progress',
+                style: AppTypography.small.copyWith(color: AppColors.textLight),
+              ),
+              Text(
+                '$calculatedPercent%',
+                style: AppTypography.small.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: AppColors.divider.withAlpha(50),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF5722)), // Orange like screenshot
+              minHeight: 6,
             ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Created: ${formatDate(order.createdAt)}',
+            style: AppTypography.caption.copyWith(color: AppColors.textLight),
           ),
         ],
       ),
@@ -281,12 +362,9 @@ class OrderCard extends StatelessWidget {
               ),
             ),
           ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(14, 10, 14, 10),
-          child: Text('Order Progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-        ),
-        _buildTimeline(context),
-        const SizedBox(height: 16),
+        // Removed Order Progress tracking steps from card as per request
+        // Percentage line remains in _buildBody
+        const SizedBox(height: 8),
       ],
     );
   }
@@ -523,8 +601,10 @@ class OrderCard extends StatelessWidget {
                       'orderNumber': order.orderNumber.isNotEmpty
                           ? order.orderNumber
                           : order.id,
-                      'threadId':
-                          '${order.id}_CUSTOMER_${order.customerId}',
+                      'threadId': ChatMessage.buildOrderThreadId(
+                        orderId: order.id,
+                        customerId: order.customerId,
+                      ),
                     },
                   ),
                   icon: const Icon(Icons.support_agent_rounded, size: 16),

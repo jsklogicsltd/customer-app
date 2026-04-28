@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
@@ -8,6 +9,7 @@ import '../../providers/order_provider.dart';
 import '../../providers/quote_provider.dart';
 import '../../providers/user_provider.dart';
 import '../common/cached_image.dart';
+import 'package:go_router/go_router.dart';
 
 class QuoteCard extends StatefulWidget {
   final QuoteModel quote;
@@ -23,6 +25,52 @@ class QuoteCard extends StatefulWidget {
 
 class _QuoteCardState extends State<QuoteCard> {
   bool _isActionLoading = false;
+  int _quantity = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _quantity = widget.quote.quantity;
+    if (_quantity == 0) {
+      _fetchQuantity();
+    }
+  }
+
+  @override
+  void didUpdateWidget(QuoteCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.quote.id != oldWidget.quote.id || widget.quote.quantity != oldWidget.quote.quantity) {
+      _quantity = widget.quote.quantity;
+      if (_quantity == 0) {
+        _fetchQuantity();
+      }
+    }
+  }
+
+  Future<void> _fetchQuantity() async {
+    try {
+      final db = FirebaseFirestore.instance;
+      final doc = await db.collection('customRequests').doc(widget.quote.orderId).get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        final q = data['quantity'] ?? data['qty'] ?? data['totalQuantity'] ?? data['step1Quantity'];
+        if (q != null) {
+          int parsedQ = 0;
+          if (q is int) parsedQ = q;
+          if (q is String) parsedQ = int.tryParse(q) ?? 0;
+          if (q is num) parsedQ = q.toInt();
+          
+          if (parsedQ > 0 && mounted) {
+            setState(() {
+              _quantity = parsedQ;
+            });
+          }
+        }
+      }
+    } catch(e) {
+      debugPrint('Error fetching quantity for QuoteCard: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,19 +85,25 @@ class _QuoteCardState extends State<QuoteCard> {
         ? widget.quote.customerFinalPrice 
         : widget.quote.totalPrice;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(5),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return InkWell(
+      onTap: () {
+        context.push('/quote-detail', extra: {
+          'quote': widget.quote,
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(5),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Column(
@@ -64,7 +118,7 @@ class _QuoteCardState extends State<QuoteCard> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildProductInfo() {
@@ -93,7 +147,7 @@ class _QuoteCardState extends State<QuoteCard> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Order Qty: ${widget.quote.quantity}',
+                  'Order Qty: $_quantity',
                   style: AppTypography.small.copyWith(color: AppColors.textMedium),
                 ),
               ],
@@ -109,8 +163,8 @@ class _QuoteCardState extends State<QuoteCard> {
     final isAdmin = role == 'admin';
 
     // Calculate display unit price (including commission for customers)
-    final customerUnitPrice = widget.quote.quantity > 0 
-        ? (displayPrice / widget.quote.quantity) 
+    final customerUnitPrice = _quantity > 0 
+        ? (displayPrice / _quantity) 
         : widget.quote.unitPrice;
 
     return Padding(
@@ -121,7 +175,7 @@ class _QuoteCardState extends State<QuoteCard> {
             'Price per Unit', 
             formatPKR(isAdmin ? widget.quote.unitPrice : customerUnitPrice)
           ),
-          _buildDetailRow('Qty', 'x ${widget.quote.quantity}'),
+          _buildDetailRow('Qty', 'x $_quantity'),
           
           if (isAdmin && widget.quote.commissionAmount > 0)
             _buildDetailRow(

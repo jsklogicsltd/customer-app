@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/order.dart';
-import '../models/split_order.dart';
 import '../services/notification_service.dart';
 
 class OrderProvider extends ChangeNotifier {
@@ -15,8 +14,14 @@ class OrderProvider extends ChangeNotifier {
   List<OrderModel> completedOrders = [];
   List<OrderModel> cancelledOrders = [];
   List<OrderModel> normalQuotesList = [];
-  List<SplitOrderModel> splitOrderQuotesList = [];
-  List<SplitOrderModel> activeSplitOrdersList = [];
+  
+  List<OrderModel> get splitOrderQuotesList => normalQuotesList
+      .where((o) => o.isSplitOrder == true)
+      .toList();
+
+  List<OrderModel> get activeSplitOrdersList => activeOrders
+      .where((o) => o.isSplitOrder == true)
+      .toList();
   
   bool isAccepting = false;
   bool _isLoading = false;
@@ -25,8 +30,6 @@ class OrderProvider extends ChangeNotifier {
   final int cancelledTabIndex = 5;
 
   StreamSubscription? _ordersSubscription;
-  StreamSubscription? _splitOrdersQuoteSub;
-  StreamSubscription? _splitOrdersActiveSub;
 
   OrderProvider() {
     _init();
@@ -38,14 +41,30 @@ class OrderProvider extends ChangeNotifier {
     _ordersTabIndex = value;
     notifyListeners();
   }
-  List<OrderModel> get allOrders => [...normalQuotesList, ...pendingOrders, ...activeOrders, ...completedOrders, ...cancelledOrders];
+  List<OrderModel> get allOrders {
+    final Map<String, OrderModel> dedup = {};
+    for (var o in [...normalQuotesList, ...pendingOrders, ...activeOrders, ...completedOrders, ...cancelledOrders]) {
+      dedup[o.id] = o;
+    }
+    final sortedList = dedup.values.toList();
+    // Sort by date again to be safe
+    sortedList.sort((a, b) {
+      final aTime = (a.updatedAt as Timestamp?)?.toDate() 
+          ?? (a.createdAt as Timestamp?)?.toDate() 
+          ?? DateTime(2000);
+      final bTime = (b.updatedAt as Timestamp?)?.toDate() 
+          ?? (b.createdAt as Timestamp?)?.toDate() 
+          ?? DateTime(2000);
+      return bTime.compareTo(aTime);
+    });
+    return sortedList;
+  }
 
   void _init() {
     _auth.authStateChanges().listen((user) {
       if (user != null) {
         debugPrint('>>> OrderProvider: Auth state USER detected uid=${user.uid}');
         listenToCustomerOrders(user.uid);  // pass uid explicitly
-        loadSplitOrderQuotes(user.uid);
       } else {
         debugPrint('>>> OrderProvider: Auth state NULL - clearing all lists');
         cancelOrdersListener();
@@ -54,8 +73,6 @@ class OrderProvider extends ChangeNotifier {
         completedOrders = [];
         cancelledOrders = [];
         normalQuotesList = [];
-        splitOrderQuotesList = [];
-        activeSplitOrdersList = [];
         notifyListeners();
       }
     });
@@ -102,26 +119,30 @@ class OrderProvider extends ChangeNotifier {
               return bTime.compareTo(aTime); // Descending
             });
 
+            // Helper for status matching
+            bool hasStatus(String status, List<String> targetStatuses) {
+              final s = status.toLowerCase().replaceAll('_', '-');
+              return targetStatuses.contains(s);
+            }
+
             // Pending tab
-            pendingOrders = allOrdersList.where((o) => [
+            pendingOrders = allOrdersList.where((o) => hasStatus(o.status, [
               'pending-approval',
               'approved',
               'vendor-notified',
               'vendor-confirmed',
               'quote-submitted',
-              'quote-sent-to-customer',
-              'quote-sent',
               'awaiting-quote',
               'rfq-sent',
-            ].contains(o.status)).toList();
+            ])).toList();
 
             // Quotes tab — orders where admin has sent final quote to customer
             normalQuotesList = allOrdersList.where((o) =>
-              ['quote-sent-to-customer', 'quote-sent', 'split-confirmed'].contains(o.status)
+              hasStatus(o.status, ['quote-sent-to-customer', 'quote-sent', 'split-confirmed'])
             ).toList();
 
             // Active tab — status is normalised (lowercase, underscores→dashes) before matching
-            activeOrders = allOrdersList.where((o) => [
+            activeOrders = allOrdersList.where((o) => hasStatus(o.status, [
               'customer-confirmed',
               'active',
               'confirmed',
@@ -138,18 +159,18 @@ class OrderProvider extends ChangeNotifier {
               'ready',
               'ready-to-pickup',
               'at-warehouse',
-            ].contains(o.status.toLowerCase().replaceAll('_', '-'))).toList();
+            ])).toList();
 
             // Completed tab
             completedOrders = allOrdersList
-                .where((o) => o.status == 'completed')
+                .where((o) => hasStatus(o.status, ['completed']))
                 .toList();
 
             // Cancelled tab
-            cancelledOrders = allOrdersList.where((o) => [
+            cancelledOrders = allOrdersList.where((o) => hasStatus(o.status, [
               'cancelled',
               'quote-declined',
-            ].contains(o.status)).toList();
+            ])).toList();
             debugPrint('>>> DIAGNOSTIC: Found ${allOrdersList.length} total orders for user.');
             debugPrint('>>> DIAGNOSTIC: Unique statuses found: ${allOrdersList.map((o) => o.status).toSet()}');
             
@@ -160,7 +181,7 @@ class OrderProvider extends ChangeNotifier {
               'dispatched', 'shipped', 'delivered', 'out-for-delivery', 'shipped-to-warehouse', 'picked-up', 'ready', 'at-warehouse',
               'completed', 'cancelled', 'quote-declined'
             };
-            final unknown = allOrdersList.where((o) => !accountedStatuses.contains(o.status)).toList();
+            final unknown = allOrdersList.where((o) => !accountedStatuses.contains(o.status.toLowerCase().replaceAll('_', '-'))).toList();
             if (unknown.isNotEmpty) {
               debugPrint('>>> DIAGNOSTIC: found ${unknown.length} orders with UNKNOWN status: ${unknown.map((o) => "${o.id}:${o.status}").toList()}');
             }
@@ -182,59 +203,11 @@ class OrderProvider extends ChangeNotifier {
         });
   }
 
-  void loadSplitOrderQuotes(String customerId) {
-    _splitOrdersQuoteSub?.cancel();
-    _splitOrdersQuoteSub = FirebaseFirestore.instance
-        .collection('splitOrders')
-        .where('customerId', isEqualTo: customerId)
-        .snapshots()
-        .listen((snapshot) {
-      try {
-        splitOrderQuotesList = snapshot.docs
-            .map((doc) => SplitOrderModel.fromFirestore(doc))
-            .where((s) => s.status == 'quote-sent')
-            .toList();
-        notifyListeners();
-      } catch (e) {
-        debugPrint('>>> SplitQuote Provider Error: $e');
-      }
-    });
 
-    _splitOrdersActiveSub?.cancel();
-    _splitOrdersActiveSub = FirebaseFirestore.instance
-        .collection('splitOrders')
-        .where('customerId', isEqualTo: customerId)
-        .snapshots()
-        .listen((snapshot) {
-      try {
-        activeSplitOrdersList = snapshot.docs
-            .map((doc) => SplitOrderModel.fromFirestore(doc))
-            .where((s) => [
-              'customer-confirmed',
-              'active',
-              'confirmed',
-              'accepted',
-              'processing',
-              'in-production',
-              'ready-to-ship',
-              'dispatched',
-              'shipped',
-              'delivered',
-            ].contains(s.status.toLowerCase().replaceAll('_', '-')))
-            .toList();
-        debugPrint('>>> DIAGNOSTIC: Found ${activeSplitOrdersList.length} active split orders.');
-        notifyListeners();
-      } catch (e) {
-        debugPrint('>>> ActiveSplit Provider Error: $e');
-      }
-    });
-  }
 
   // Call this on logout to cancel listener
   void cancelOrdersListener() {
     _ordersSubscription?.cancel();
-    _splitOrdersQuoteSub?.cancel();
-    _splitOrdersActiveSub?.cancel();
   }
 
   @override
@@ -266,18 +239,19 @@ class OrderProvider extends ChangeNotifier {
     final productData = productDoc.data()!;
     final orderRef = _db.collection('orders').doc();
     
-    await orderRef.set({
+    final orderData = {
       'orderId':          orderRef.id,
       'orderNumber':      'ORD-${DateTime.now().year}-${orderRef.id.substring(0,6).toUpperCase()}',
       'customerId':       user.uid,
       'vendorId':         productData['vendorId'] ?? '',
       'productId':        productId,
-      'productName':      productData['productName'] ?? '',
-      'mainPhotoUrl':     productData['mainPhotoUrl'] ?? '',
+      'productName':      productData['productName'] ?? productData['name'] ?? '',
+      'mainPhotoUrl':     productData['mainPhotoUrl'] ?? productData['mainImageUrl'] ?? productData['imageUrl'] ?? productData['image'] ?? '',
+      'vendorName':       productData['vendorName'] ?? '',
       'category':         productData['category'] ?? '',
       'quantity':         quantity,
-      'unitPrice':        (productData['unitPrice'] ?? 0).toDouble(),
-      'totalAmount':      quantity * (productData['unitPrice'] ?? 0).toDouble(),
+      'unitPrice':        (productData['unitPrice'] ?? productData['price'] ?? productData['pricePerUnit'] ?? 0).toDouble(),
+      'totalAmount':      quantity * (productData['unitPrice'] ?? productData['price'] ?? productData['pricePerUnit'] ?? 0).toDouble(),
       'status':           'pending-approval',
       'deliveryAddress':  deliveryAddress,
       'paymentMethod':    'cash-on-delivery',
@@ -287,7 +261,19 @@ class OrderProvider extends ChangeNotifier {
       'customerPrice':    null,
       'reviewed':         false,
       'updatedAt':        FieldValue.serverTimestamp(),
-    });
+    };
+
+    debugPrint('📦 Current User UID: ${user.uid}');
+    debugPrint('📦 Order Data CustomerID: ${orderData['customerId']}');
+    debugPrint('📦 Attempting to place order: ${orderRef.id}');
+    
+    try {
+      await orderRef.set(orderData);
+      debugPrint('✅ Order document set successfully');
+    } catch (e) {
+      debugPrint('❌ Firestore set() failed: $e');
+      rethrow;
+    }
 
     // Send notification to admin
     try {
@@ -295,7 +281,7 @@ class OrderProvider extends ChangeNotifier {
         recipientId: 'admin',
         recipientType: 'admin',
         title: 'New Order Received',
-        body: '${customerName ?? 'A customer'} placed an order for ${productData['productName'] ?? 'Product'}',
+        body: '${customerName ?? 'A customer'} placed an order for ${productData['productName'] ?? productData['name'] ?? 'Product'}',
         type: 'new_order',
         referenceId: orderRef.id,
         referenceType: 'order',
@@ -393,15 +379,90 @@ class OrderProvider extends ChangeNotifier {
       isAccepting = true;
       notifyListeners();
 
-      // Update Firestore
-      await FirebaseFirestore.instance
-        .collection('orders')
-        .doc(orderId)
-        .update({
-          'status': 'customer-confirmed',
-          'customerConfirmedAt': Timestamp.now(),
-          'updatedAt': Timestamp.now(),
+      final orderDoc = await _db.collection('orders').doc(orderId).get();
+      if (!orderDoc.exists) throw 'Order not found';
+      final orderData = orderDoc.data()!;
+      
+      final finalPrice = (orderData['customerPrice'] ?? orderData['confirmedPrice'] ?? 0.0).toDouble();
+      final quoteId = orderData['quoteId'] as String?;
+
+      final batch = _db.batch();
+
+      // 1. Update order status, confirmed price and tracking steps
+      batch.update(_db.collection('orders').doc(orderId), {
+        'status': 'in-production',
+        'confirmedPrice': finalPrice,
+        'customerConfirmedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'progressPercent': 11,
+        'currentStepId': 'order_accepted',
+        'currentStepTitle': 'Order Accepted',
+        'trackingSteps': [
+          {
+            'stepId': 'order_accepted',
+            'title': 'Order Accepted',
+            'description': 'Order has been accepted and confirmed by the customer.',
+            'status': 'completed',
+            'completedAt': Timestamp.now(),
+            'percentage': 11,
+          },
+          {
+            'stepId': 'raw_material',
+            'title': 'Raw Material Procured',
+            'description': 'Procuring raw materials for production.',
+            'status': 'in-progress',
+            'completedAt': null,
+            'percentage': 22,
+          },
+          {
+            'stepId': 'production_started',
+            'title': 'Production Started',
+            'status': 'pending',
+            'completedAt': null,
+            'percentage': 33,
+          },
+          {
+            'stepId': 'production_completed',
+            'title': 'Production Completed',
+            'status': 'pending',
+            'completedAt': null,
+            'percentage': 66,
+          },
+          {
+            'stepId': 'ready_for_pickup',
+            'title': 'Ready for Pickup',
+            'status': 'pending',
+            'completedAt': null,
+            'percentage': 88,
+          },
+          {
+            'stepId': 'dispatched',
+            'title': 'Dispatched',
+            'status': 'pending',
+            'completedAt': null,
+            'percentage': 94,
+          }
+        ],
+        'timeline': FieldValue.arrayUnion([
+          {
+            'step': 'Quote Accepted',
+            'date': DateTime.now().toIso8601String(),
+            'completed': true,
+            'note': 'Customer accepted the quote and confirmed the order.',
+          }
+        ]),
+      });
+
+      // 2. Update quote status if it exists
+      if (quoteId != null && quoteId.isNotEmpty) {
+        batch.update(_db.collection('quotes').doc(quoteId), {
+          'status': 'accepted',
+          'acceptedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
         });
+      }
+
+      await batch.commit();
 
       debugPrint('>>> normal quote accepted: $orderId');
 
@@ -412,22 +473,33 @@ class OrderProvider extends ChangeNotifier {
 
       // Switch to Active tab (index 3)
       ordersTabIndex = activeTabIndex;
-      notifyListeners();
 
       // Send notification to admin
       try {
-        final order = getById(orderId);
         await NotificationService.sendNotification(
           recipientId: 'admin',
           recipientType: 'admin',
           title: 'Quote Accepted',
-          body: '${customerName ?? 'A customer'} accepted the quote for ${order?.productName ?? 'Order'}',
+          body: '${customerName ?? 'A customer'} accepted the quote for ${orderData['productName'] ?? 'Order'}',
           type: 'quote_accepted',
           referenceId: orderId,
           referenceType: 'order',
         );
+
+        // Send notification to customer
+        if (_auth.currentUser != null) {
+          await NotificationService.sendNotification(
+            recipientId: _auth.currentUser!.uid,
+            recipientType: 'customer',
+            title: 'Order Activated',
+            body: 'Ap ka order ab active hogyaa hey ab ap es order ki live tracking dek sakty hooo',
+            type: 'order_active',
+            referenceId: orderId,
+            referenceType: 'order',
+          );
+        }
       } catch (e) {
-        debugPrint('Error sending quote acceptance notification: $e');
+        debugPrint('Error sending quote acceptance notifications: $e');
       }
     } catch (e) {
       isAccepting = false;
@@ -439,15 +511,28 @@ class OrderProvider extends ChangeNotifier {
 
   Future<void> declineNormalQuote(String orderId, {String? customerName}) async {
     try {
-      await FirebaseFirestore.instance
-        .collection('orders')
-        .doc(orderId)
-        .update({
-          'status': 'cancelled',
-          'cancellationReason': 'Customer declined quote',
-          'cancelledAt': Timestamp.now(),
-          'updatedAt': Timestamp.now(),
+      final orderDoc = await _db.collection('orders').doc(orderId).get();
+      final orderData = orderDoc.data() ?? {};
+      final quoteId = orderData['quoteId'] as String?;
+
+      final batch = _db.batch();
+      
+      batch.update(_db.collection('orders').doc(orderId), {
+        'status': 'cancelled',
+        'cancellationReason': 'Customer declined quote',
+        'cancelledAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (quoteId != null && quoteId.isNotEmpty) {
+        batch.update(_db.collection('quotes').doc(quoteId), {
+          'status': 'declined',
+          'declinedAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
         });
+      }
+
+      await batch.commit();
 
       debugPrint('>>> normal quote declined: $orderId');
 
@@ -455,16 +540,14 @@ class OrderProvider extends ChangeNotifier {
 
       // Switch to Cancelled tab
       ordersTabIndex = cancelledTabIndex;
-      notifyListeners();
 
       // Send notification to admin
       try {
-        final order = getById(orderId);
         await NotificationService.sendNotification(
           recipientId: 'admin',
           recipientType: 'admin',
           title: 'Quote Declined',
-          body: '${customerName ?? 'A customer'} declined the quote for ${order?.productName ?? 'Order'}',
+          body: '${customerName ?? 'A customer'} declined the quote for ${orderData['productName'] ?? 'Order'}',
           type: 'quote_declined',
           referenceId: orderId,
           referenceType: 'order',
@@ -483,24 +566,21 @@ class OrderProvider extends ChangeNotifier {
       isAccepting = true;
       notifyListeners();
 
-      // Update parent order status
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(orderId)
-          .update({
+      final batch = _db.batch();
+
+      // 1. Update parent order status
+      batch.update(_db.collection('orders').doc(orderId), {
         'status': 'customer-confirmed',
-        'customerConfirmedAt': Timestamp.now(),
-        'updatedAt': Timestamp.now(),
+        'customerConfirmedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Update all orderParts to active
-      final partsSnapshot = await FirebaseFirestore.instance
+      // 2. Update all orderParts to active
+      final partsSnapshot = await _db
           .collection('orders')
           .doc(orderId)
           .collection('orderParts')
           .get();
-
-      final batch = FirebaseFirestore.instance.batch();
 
       for (final part in partsSnapshot.docs) {
         batch.update(part.reference, {
@@ -510,23 +590,15 @@ class OrderProvider extends ChangeNotifier {
 
       await batch.commit();
 
-      // NEW: Also update the summary document in splitOrders collection
-      await FirebaseFirestore.instance
-          .collection('splitOrders')
-          .doc(orderId)
-          .update({
-        'status': 'active',
-        'updatedAt': Timestamp.now(),
-      }).catchError((e) => debugPrint('Non-critical: could not update splitOrders doc: $e'));
+      debugPrint('>>> split quote accepted: $orderId');
 
-      // Remove from quotes list locally
+      // Remove from quotes list locally for immediate UI update
       normalQuotesList.removeWhere((o) => o.id == orderId);
       
       isAccepting = false;
 
       // Switch to Active tab
       ordersTabIndex = activeTabIndex;
-      notifyListeners();
 
       // Send notification to admin
       try {
@@ -540,13 +612,27 @@ class OrderProvider extends ChangeNotifier {
           referenceId: orderId,
           referenceType: 'order',
         );
+
+        // Send notification to customer
+        if (_auth.currentUser != null) {
+          await NotificationService.sendNotification(
+            recipientId: _auth.currentUser!.uid,
+            recipientType: 'customer',
+            title: 'Order Activated',
+            body: 'Ap ka order ab active hogyaa hey ab ap es order ki live tracking dek sakty hooo',
+            type: 'order_active',
+            referenceId: orderId,
+            referenceType: 'order',
+          );
+        }
       } catch (e) {
-        debugPrint('Error sending split quote acceptance notification: $e');
+        debugPrint('Error sending split quote acceptance notifications: $e');
       }
     } catch (e) {
       isAccepting = false;
       notifyListeners();
       debugPrint('acceptSplitQuote ERROR: $e');
+      // If it was a permission error, we should probably inform the user or at least stop the loading
       rethrow;
     }
   }
@@ -567,7 +653,6 @@ class OrderProvider extends ChangeNotifier {
 
       // Switch to Cancelled tab
       ordersTabIndex = cancelledTabIndex;
-      notifyListeners();
 
       // Send notification to admin
       try {
@@ -587,6 +672,35 @@ class OrderProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('declineSplitQuote ERROR: $e');
       rethrow;
+    }
+  }
+
+  Future<void> markOrderAsCompleted(String orderId) async {
+    try {
+      await _db.collection('orders').doc(orderId).update({
+        'status': 'completed',
+        'completedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint('>>> Order $orderId marked as COMPLETED');
+
+      // Send notification to admin
+      try {
+        final order = getById(orderId);
+        await NotificationService.sendNotification(
+          recipientId: 'admin',
+          recipientType: 'admin',
+          title: 'Split Order Completed',
+          body: 'All parts of order ${order?.orderNumber ?? orderId} have been completed.',
+          type: 'order_update',
+          referenceId: orderId,
+          referenceType: 'order',
+        );
+      } catch (e) {
+        debugPrint('Error sending completion notification: $e');
+      }
+    } catch (e) {
+      debugPrint('>>> markOrderAsCompleted ERROR: $e');
     }
   }
 }

@@ -66,7 +66,7 @@ class ChatListScreen extends StatelessWidget {
               ),
               itemBuilder: (context, index) {
                 final order = allOrders[index];
-                final threadId = ChatMessage.buildThreadId(
+                final threadId = ChatMessage.buildOrderThreadId(
                   orderId: order.id,
                   customerId: customerId,
                 );

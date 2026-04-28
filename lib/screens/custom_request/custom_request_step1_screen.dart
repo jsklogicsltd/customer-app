@@ -20,6 +20,7 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
   String? _selectedCategory;
   String? _selectedSubCategory;
   String? _selectedProductType;
+  final _nameCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final List<XFile> _pickedImages = [];
@@ -49,6 +50,7 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final provider = context.read<CustomRequestProvider>();
       if (provider.step1Category.isNotEmpty) {
         setState(() => _selectedCategory = provider.step1Category);
@@ -59,12 +61,14 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
       if (provider.step1ProductType.isNotEmpty) {
         setState(() => _selectedProductType = provider.step1ProductType);
       }
+      _nameCtrl.text = provider.step1ProductName;
       _descCtrl.text = provider.step1Description;
     });
   }
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
   }
@@ -89,7 +93,10 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
       source: ImageSource.gallery,
       imageQuality: 80,
     );
-    if (image != null) setState(() => _pickedImages.add(image));
+    if (image != null) {
+      if (!mounted) return;
+      setState(() => _pickedImages.add(image));
+    }
   }
 
   Widget _levelCheck(bool done) {
@@ -109,7 +116,8 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
     final subCategories = _getSubCategories(hierarchy);
     final productTypes = _getProductTypes(hierarchy);
 
-    final canContinue = _selectedCategory != null &&
+    final canContinue = _nameCtrl.text.isNotEmpty &&
+        _selectedCategory != null &&
         _selectedSubCategory != null &&
         _selectedProductType != null;
 
@@ -117,7 +125,7 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
       backgroundColor: AppColors.bgLight,
       appBar: AppBar(
         leading: IconButton(
-          onPressed: () => context.go('/home'),
+          onPressed: () => context.pop(),
           icon: const Icon(Icons.arrow_back),
         ),
         title: const Text('Create Custom Request'),
@@ -143,6 +151,40 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
                         .copyWith(color: AppColors.textMedium),
                   ),
                   const SizedBox(height: 20),
+
+                  // ── Product Name ──────────────────────────────────────
+                  Row(
+                    children: [
+                      Text('Product Name',
+                          style: AppTypography.bodyMedium
+                              .copyWith(fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withAlpha(20),
+                          borderRadius: BorderRadius.circular(100),
+                          border: Border.all(
+                              color: Colors.red.withAlpha(80)),
+                        ),
+                        child: Text('Required',
+                            style: AppTypography.caption.copyWith(
+                                color: Colors.red,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _nameCtrl,
+                    decoration: const InputDecoration(
+                      hintText: 'e.g. Wedding Dress, Office Table, etc.',
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    onChanged: (v) => setState(() {}), // To update canContinue
+                  ),
 
                   // ── Dropdown 1: Category ───────────────────────────────
                   Row(
@@ -400,6 +442,7 @@ class _CustomRequestStep1ScreenState extends State<CustomRequestStep1Screen> {
               onPressed: canContinue
                   ? () {
                       final p = context.read<CustomRequestProvider>();
+                      p.step1ProductName = _nameCtrl.text.trim();
                       p.step1Category = _selectedCategory!;
                       p.step1SubCategory = _selectedSubCategory!;
                       p.step1ProductType = _selectedProductType!;

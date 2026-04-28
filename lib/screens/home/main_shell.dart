@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
+import '../../providers/user_provider.dart';
 
 class MainShell extends StatefulWidget {
   final StatefulNavigationShell navigationShell;
@@ -14,8 +16,8 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   void _onTap(int index) {
     if (index == 2) {
-      // Custom request tab — navigate directly
-      context.go('/custom-request/step1');
+      // Custom request tab — use push to keep the shell alive and stable
+      context.push('/custom-request/step1');
       return;
     }
 
@@ -30,6 +32,78 @@ class _MainShellState extends State<MainShell> {
     final currentIndex = widget.navigationShell.currentIndex;
 
     return Scaffold(
+      drawer: Drawer(
+        child: Column(
+          children: [
+            DrawerHeader(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primaryGreen, AppColors.gold],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('🏺', style: TextStyle(fontSize: 40)),
+                    const SizedBox(height: 10),
+                    Text(
+                      'KARSAAZI',
+                      style: AppTypography.h3.copyWith(color: Colors.white, letterSpacing: 2),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            _DrawerItem(
+              icon: Icons.home_rounded,
+              label: 'Dashboard',
+              onTap: () {
+                Navigator.pop(context);
+                Future.delayed(const Duration(milliseconds: 150), () {
+                  widget.navigationShell.goBranch(0);
+                });
+              },
+            ),
+            _DrawerItem(
+              icon: Icons.quiz_rounded,
+              label: 'FAQs',
+              onTap: () {
+                Navigator.pop(context);
+                Future.delayed(const Duration(milliseconds: 150), () {
+                  context.push('/faq');
+                });
+              },
+            ),
+            _DrawerItem(
+              icon: Icons.description_rounded,
+              label: 'Terms & Conditions',
+              onTap: () {
+                Navigator.pop(context);
+                Future.delayed(const Duration(milliseconds: 150), () {
+                  context.push('/terms');
+                });
+              },
+            ),
+            const Spacer(),
+            const Divider(),
+            _DrawerItem(
+              icon: Icons.logout_rounded,
+              label: 'Sign Out',
+              color: Colors.redAccent,
+              onTap: () {
+                Navigator.pop(context);
+                Future.delayed(const Duration(milliseconds: 150), () {
+                  context.read<UserProvider>().signOut();
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
       body: widget.navigationShell,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -215,6 +289,37 @@ class _NavItemWithBadge extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: color ?? AppColors.primaryGreen),
+      title: Text(
+        label,
+        style: AppTypography.bodyMedium.copyWith(
+          fontWeight: FontWeight.w600,
+          color: color ?? AppColors.textDark,
+        ),
+      ),
+      onTap: onTap,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
     );
   }
 }

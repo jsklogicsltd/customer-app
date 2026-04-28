@@ -62,43 +62,48 @@ class NotificationService {
   /// Resolves ALL active admin UIDs from the adminUsers collection.
   /// Falls back to the users collection (role == 'admin') if needed.
   /// As a last resort, uses the known primary admin UID.
+  /// Resolves ALL active admin UIDs from the adminUsers collection.
+  /// This method is designed to be resilient to permission errors.
   static Future<List<String>> _resolveAdminUids() async {
     final Set<String> adminUids = {};
+    
+    // Always include the hardcoded primary admin fallback first
+    adminUids.add('h9q4ZLZom1RPv91BJdvllRGpLcS2');
+
     try {
-      // PRIMARY: adminUsers collection — document ID IS the UID
-      // Also check the 'uid' field inside the document for reliability
-      final adminUsersSnap = await _db.collection('adminUsers').get();
+      // PRIMARY: adminUsers collection
+      // Note: Customers might not have permission to 'list' this collection.
+      // If it fails, we fall back to the IDs we already have.
+      final adminUsersSnap = await _db.collection('adminUsers').limit(10).get();
       for (var doc in adminUsersSnap.docs) {
         final data = doc.data();
         final isActive = data['isActive'] as bool? ?? true;
-        if (!isActive) continue; // skip disabled admins
+        if (!isActive) continue;
 
-        // Prefer the 'uid' field stored in the document
         final uidFromField = data['uid'] as String?;
         if (uidFromField != null && uidFromField.isNotEmpty) {
           adminUids.add(uidFromField);
         }
-        // Also add doc.id as a safety net (doc ID == UID in adminUsers)
         adminUids.add(doc.id);
       }
+    } catch (e) {
+      debugPrint('NotificationService: Note - Admin resolution from adminUsers skipped (likely permission restriction for customer)');
+    }
 
-      // SECONDARY: users collection with role == 'admin'
-      if (adminUids.isEmpty) {
+    // SECONDARY: users collection with role == 'admin'
+    if (adminUids.length <= 1) { // if only fallback is present
+      try {
         final usersSnap = await _db
             .collection('users')
             .where('role', isEqualTo: 'admin')
+            .limit(10)
             .get();
         for (var doc in usersSnap.docs) {
           adminUids.add(doc.id);
         }
+      } catch (e) {
+        debugPrint('NotificationService: Note - Admin resolution from users skipped');
       }
-    } catch (e) {
-      debugPrint('Error resolving admin UIDs: $e');
-    }
-
-    // FALLBACK: known primary admin UID (note: correct '0' not 'O')
-    if (adminUids.isEmpty) {
-      adminUids.add('5LA0B4Z2tVch0tTGtmBw5t1Fa9a2');
     }
 
     debugPrint('🔍 Resolved admin UIDs: ${adminUids.toList()}');

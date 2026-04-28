@@ -2,21 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
-import '../../models/split_order.dart';
+import '../../models/order.dart';
 
 class ActiveSplitOrderCard extends StatelessWidget {
-  final SplitOrderModel splitOrder;
+  final OrderModel order;
 
   const ActiveSplitOrderCard({
     super.key,
-    required this.splitOrder,
+    required this.order,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        context.push('/split-orders/${splitOrder.splitOrderId}');
+        context.push('/orders/${order.id}');
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
@@ -38,82 +38,69 @@ class ActiveSplitOrderCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.teal.withAlpha(20),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.teal.withAlpha(50)),
-                  ),
-                  child: const Text(
-                    'SPLIT ORDER',
-                    style: TextStyle(
-                        color: Colors.teal,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.productName,
+                        style: AppTypography.h3.copyWith(fontSize: 16),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'ID: ${order.orderNumber.isNotEmpty ? order.orderNumber : order.id.substring(0, 8).toUpperCase()}',
+                        style: AppTypography.caption.copyWith(color: AppColors.textLight),
+                      ),
+                    ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.primaryGreen.withAlpha(20),
                     borderRadius: BorderRadius.circular(6),
-                    border:
-                        Border.all(color: AppColors.primaryGreen.withAlpha(50)),
+                    border: Border.all(color: AppColors.primaryGreen.withAlpha(50)),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.local_shipping_outlined,
-                          size: 12, color: AppColors.primaryGreen),
-                      SizedBox(width: 4),
+                      const Icon(Icons.local_shipping_outlined, size: 12, color: AppColors.primaryGreen),
+                      const SizedBox(width: 4),
                       Text(
-                        'Active',
-                        style: TextStyle(
-                            color: AppColors.primaryGreen,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold),
+                        order.status.toUpperCase(),
+                        style: const TextStyle(color: AppColors.primaryGreen, fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              splitOrder.description,
-              style: AppTypography.bodyMedium
-                  .copyWith(fontWeight: FontWeight.bold),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 20),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(Icons.storefront_outlined,
-                    size: 16, color: AppColors.textMedium),
-                const SizedBox(width: 4),
-                Text(
-                  '${splitOrder.vendorCount} vendors',
-                  style:
-                      AppTypography.small.copyWith(color: AppColors.textMedium),
+                Row(
+                  children: [
+                    const Icon(Icons.storefront_outlined, size: 16, color: AppColors.textMedium),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Multiple vendors',
+                      style: AppTypography.small.copyWith(color: AppColors.textMedium),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                const Icon(Icons.inventory_2_outlined,
-                    size: 16, color: AppColors.textMedium),
-                const SizedBox(width: 4),
                 Text(
-                  'Qty: ${splitOrder.totalQuantity}',
-                  style:
-                      AppTypography.small.copyWith(color: AppColors.textMedium),
+                  'Qty: ${order.quantity}',
+                  style: AppTypography.small.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             const Divider(height: 1),
             const SizedBox(height: 12),
             const Row(

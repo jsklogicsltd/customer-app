@@ -118,7 +118,9 @@ class _QuoteCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      '${request.productType} / ${request.category}',
+                      request.productName.isNotEmpty
+                          ? request.productName
+                          : '${request.productType} / ${request.category}',
                       style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,

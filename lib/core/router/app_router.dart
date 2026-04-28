@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/user_provider.dart';
+import '../../models/chat_message.dart';
 
 import '../../screens/auth/splash_screen.dart';
-import '../../screens/auth/language_selection_screen.dart';
 import '../../screens/auth/onboarding_screen.dart';
 import '../../screens/auth/signup_screen.dart';
 import '../../screens/auth/otp_verification_screen.dart';
@@ -17,7 +17,7 @@ import '../../screens/browse/product_list_screen.dart';
 import '../../screens/browse/search_screen.dart';
 import '../../screens/product/product_detail_screen.dart';
 import '../../screens/product/all_reviews_screen.dart';
-import '../../screens/vendor/vendor_profile_screen.dart';
+
 import '../../screens/orders/place_order_screen.dart';
 import '../../screens/orders/order_confirmation_screen.dart';
 import '../../screens/orders/order_tracking_screen.dart';
@@ -30,7 +30,10 @@ import '../../screens/custom_request/request_submitted_screen.dart';
 import '../../screens/custom_request/custom_request_status_screen.dart';
 import '../../screens/custom_request/quote_accept_confirm_screen.dart';
 import '../../screens/custom_request/quotes_list_screen.dart';
+import '../../screens/orders/quote_detail_screen.dart';
 import '../../screens/chat/chat_list_screen.dart';
+import '../../models/order.dart';
+import '../../models/quote.dart';
 import '../../screens/chat/chat_detail_screen.dart';
 import '../../screens/notifications/notifications_screen.dart';
 
@@ -38,6 +41,8 @@ import '../../screens/profile/saved_items_screen.dart';
 import '../../screens/profile/edit_profile_screen.dart';
 import '../../screens/orders/my_orders_screen.dart';
 import '../../screens/profile/profile_screen.dart';
+import '../../screens/support/faq_screen.dart';
+import '../../screens/support/terms_screen.dart';
 
 class AppRouter {
   static GoRouter? _router;
@@ -56,7 +61,6 @@ class AppRouter {
 
         // Paths that don't require authentication or profile setup
         final bool isAuthPath = state.matchedLocation == '/' ||
-            state.matchedLocation == '/language' ||
             state.matchedLocation == '/onboarding' ||
             state.matchedLocation == '/signup' ||
             state.matchedLocation == '/forgot-password';
@@ -74,9 +78,7 @@ class AppRouter {
         }
 
         // 3. If authenticated and has profile, but trying to go to auth pages
-        if (userProvider.hasUser &&
-            isAuthPath &&
-            state.matchedLocation != '/language') {
+        if (userProvider.hasUser && isAuthPath) {
           return '/home';
         }
 
@@ -85,9 +87,6 @@ class AppRouter {
       routes: [
         // Auth Flow
         GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
-        GoRoute(
-            path: '/language',
-            builder: (_, __) => const LanguageSelectionScreen()),
         GoRoute(
             path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
         GoRoute(path: '/signup', builder: (_, __) => const SignUpScreen()),
@@ -170,11 +169,7 @@ class AppRouter {
           builder: (_, state) =>
               AllReviewsScreen(vendorId: state.pathParameters['id']!),
         ),
-        GoRoute(
-          path: '/vendor/:id',
-          builder: (_, state) =>
-              VendorProfileScreen(vendorId: state.pathParameters['id']!),
-        ),
+
 
         // Orders
         GoRoute(
@@ -226,6 +221,18 @@ class AppRouter {
           ),
         ),
         GoRoute(path: '/quotes', builder: (_, __) => const QuotesListScreen()),
+
+        GoRoute(
+          path: '/quote-detail',
+          builder: (_, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            return QuoteDetailScreen(
+              quote: extra?['quote'] as QuoteModel?,
+              order: extra?['order'] as OrderModel?,
+              isSplitOrder: extra?['isSplitOrder'] as bool? ?? false,
+            );
+          },
+        ),
 
         // Chat — Order-Centric Hub (Approach 3)
         GoRoute(
@@ -290,6 +297,10 @@ class AppRouter {
             return MyOrdersScreen(initialTab: initialTab);
           },
         ),
+        
+        // Support
+        GoRoute(path: '/faq', builder: (_, __) => const FAQScreen()),
+        GoRoute(path: '/terms', builder: (_, __) => const TermsScreen()),
       ],
     );
     _router = router;

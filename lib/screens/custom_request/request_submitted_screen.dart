@@ -91,7 +91,11 @@ class _RequestSubmittedScreenState extends State<RequestSubmittedScreen>
               HunarmandButton(
                 label: 'Back to Home',
                 type: ButtonType.outlined,
-                onPressed: () => context.go('/home'),
+                onPressed: () {
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    if (context.mounted) context.go('/home');
+                  });
+                },
               ),
             ],
           ),

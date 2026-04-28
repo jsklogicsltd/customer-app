@@ -135,6 +135,7 @@ class ChatMessage {
       'text': text,
       'timestamp': FieldValue.serverTimestamp(),
       'customerName': customerName ?? '',
+      'customerId': senderId, // Ensure customerId is set for admin inbox grouping
       'read': false,
       'chatType': chatType,
       'productId': productId,
@@ -145,11 +146,11 @@ class ChatMessage {
   }
 
   /// Builds the standard threadId for a customer-admin conversation.
-  static String buildThreadId({
+  static String buildOrderThreadId({
     required String orderId,
     required String customerId,
   }) =>
-      '${orderId}_CUSTOMER_$customerId';
+      'ORD_${orderId}_CUSTOMER_$customerId';
 
   /// Builds a product-based threadId.
   static String buildProductThreadId({

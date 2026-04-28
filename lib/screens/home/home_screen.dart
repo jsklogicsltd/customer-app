@@ -9,8 +9,12 @@ import '../../providers/vendor_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/category_provider.dart';
+import '../../providers/order_provider.dart';
+import '../../providers/custom_request_provider.dart';
+import '../../providers/quote_provider.dart';
+import '../../models/order.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../widgets/cards/product_card.dart';
-import '../../widgets/cards/vendor_card.dart';
 import '../../widgets/notification_bell.dart';
 
 
@@ -27,15 +31,12 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<ProductProvider>(context, listen: false).fetchProducts();
-      Provider.of<VendorProvider>(context, listen: false)
-          .fetchVerifiedVendors();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final productProvider = context.watch<ProductProvider>();
-    final vendorProvider = context.watch<VendorProvider>();
     final notifProvider = context.watch<NotificationProvider>();
     final userProvider = context.watch<UserProvider>();
     final categoryProvider = context.watch<CategoryProvider>();
@@ -105,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
             elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.menu_rounded),
-              onPressed: () {},
+              onPressed: () => Scaffold.of(context).openDrawer(),
             ),
             title: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -156,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const Icon(Icons.search_rounded,
                             color: AppColors.textLight),
                         const SizedBox(width: 10),
-                        Text('Search products, vendors...',
+                        Text('Search products...',
                             style: AppTypography.body
                                 .copyWith(color: AppColors.textLight)),
                       ],
@@ -219,7 +220,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 20),
 
-                const SizedBox(height: 10),
+                // Project Overview Dashboard
+                Consumer2<OrderProvider, QuoteProvider>(
+                  builder: (context, orderProvider, quoteProvider, child) {
+                    return _buildProjectOverview(context, orderProvider, quoteProvider);
+                  },
+                ),
+
+                const SizedBox(height: 24),
 
                 // Popular Categories
                 _SectionHeader(
@@ -294,24 +302,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 const SizedBox(height: 20),
 
-                // Top Vendors
-                _SectionHeader(title: 'Top Verified Vendors', onViewAll: () {}),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 260,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: vendorProvider.vendors.length,
-                    itemBuilder: (context, index) {
-                      return VendorCard(
-                          vendor: vendorProvider.vendors[index],
-                          horizontal: true);
-                    },
-                  ),
-                ),
 
-                const SizedBox(height: 20),
 
                 // Trending Products
                 _SectionHeader(
@@ -357,6 +348,165 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         return 'Individual';
     }
+  }
+
+  Widget _buildProjectOverview(BuildContext context, OrderProvider orderProvider,
+      QuoteProvider quoteProvider) {
+    // orderProvider.activeOrders already includes split orders.
+    // We should NOT add activeSplitOrdersList.length again.
+    final activeCount = orderProvider.activeOrders.length;
+    
+    final customQuotes = quoteProvider.pendingQuotes;
+    final splitQuotes = orderProvider.splitOrderQuotesList;
+    
+    // Deduplicate: only count normal order quotes that don't have a corresponding custom quote or split quote
+    final uniqueOrderQuotesCount = orderProvider.normalQuotesList.where((o) =>
+        !customQuotes.any((q) => q.orderId == o.id) &&
+        !splitQuotes.any((s) => s.id == o.id)).length;
+
+    // splitQuotes are already part of normalQuotesList. 
+    // pendingQuotesCount should be customQuotes + unique items in normalQuotesList.
+    final pendingQuotesCount = customQuotes.length + orderProvider.normalQuotesList.where((o) => 
+        !customQuotes.any((q) => q.orderId == o.id)).length;
+
+    // Calculate total projects (deduped orders + custom quotes not linked to orders yet)
+    // Note: orderProvider.allOrders is already deduped internally
+    final totalProjectsCount = orderProvider.allOrders.length + 
+        quoteProvider.pendingQuotes.where((q) => 
+          !orderProvider.allOrders.any((o) => o.id == q.orderId)).length;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Project Overview', style: AppTypography.h3),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryGreen.withAlpha(20),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text('Live',
+                    style: AppTypography.small.copyWith(
+                        color: AppColors.primaryGreen,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _OverviewCard(
+                title: 'Active Projects',
+                value: activeCount.toString(),
+                icon: Icons.rocket_launch_rounded,
+                color: AppColors.primaryGreen,
+                onTap: () {
+                  orderProvider.ordersTabIndex = orderProvider.activeTabIndex;
+                  context.go('/orders-tab');
+                },
+              ),
+              const SizedBox(width: 12),
+              _OverviewCard(
+                title: 'Pending Quotes',
+                value: pendingQuotesCount.toString(),
+                icon: Icons.pending_actions_rounded,
+                color: AppColors.gold,
+                onTap: () {
+                  orderProvider.ordersTabIndex = 2; // Quotes tab
+                  context.go('/orders-tab');
+                },
+              ),
+              const SizedBox(width: 12),
+              _OverviewCard(
+                title: 'Total Projects',
+                value: totalProjectsCount.toString(),
+                icon: Icons.assignment_rounded,
+                color: Colors.blueAccent,
+                onTap: () {
+                  orderProvider.ordersTabIndex = 0; // All tab
+                  context.go('/orders-tab');
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverviewCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _OverviewCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(8),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(color: color.withAlpha(30), width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: color.withAlpha(20),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 18, color: color),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value,
+                style: AppTypography.h2.copyWith(color: color, fontSize: 16),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.textMedium,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 10,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -7,6 +7,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/order.dart';
+import '../../models/chat_message.dart';
 
 class NormalOrderTrackingWidget extends StatefulWidget {
   final OrderModel order;
@@ -22,11 +23,82 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
   String? _trackingNumber;
   StreamSubscription? _orderSubscription;
   StreamSubscription? _partsSubscription;
+  Map<String, dynamic>? _extraDetails;
 
   @override
   void initState() {
     super.initState();
     _initTrackingListener();
+    _fetchExtraDetails();
+  }
+
+  void _fetchExtraDetails() async {
+    try {
+      Map<String, dynamic> merged = {};
+      
+      final orderDoc = await FirebaseFirestore.instance.collection('orders').doc(widget.order.id).get();
+      if (orderDoc.exists) {
+        merged.addAll(orderDoc.data() as Map<String, dynamic>);
+      }
+
+      final productId = widget.order.productId;
+      if (productId.isNotEmpty) {
+        final prodDoc = await FirebaseFirestore.instance.collection('products').doc(productId).get();
+        if (prodDoc.exists) {
+          merged.addAll(prodDoc.data() as Map<String, dynamic>);
+        }
+      }
+
+      final customerId = widget.order.customerId;
+      if (customerId.isNotEmpty) {
+        final reqs = await FirebaseFirestore.instance
+            .collection('customRequests')
+            .where('customerId', isEqualTo: customerId)
+            .get();
+        
+        for (var doc in reqs.docs) {
+          final data = doc.data();
+          if (data['confirmedOrderId'] == widget.order.id || 
+              doc.id == widget.order.id || 
+              doc.id == productId || 
+              (widget.order.productName.isNotEmpty && data['productName'] == widget.order.productName) ||
+              (widget.order.productName.isNotEmpty && data['productType'] == widget.order.productName) ||
+              (widget.order.productName.isNotEmpty && data['step1ProductName'] == widget.order.productName)) {
+            merged.addAll(data);
+            break;
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _extraDetails = merged;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching extra details: $e');
+    }
+  }
+
+  int _getValidQuantity() {
+    int parsedQ = widget.order.quantity;
+    if (parsedQ > 0) return parsedQ;
+
+    if (_extraDetails != null) {
+      final keys = ['quantity', 'qty', 'totalQuantity', 'step1Quantity'];
+      for (var key in keys) {
+        final val = _extraDetails![key];
+        if (val != null) {
+          if (val is int && val > 0) return val;
+          if (val is num && val > 0) return val.toInt();
+          if (val is String) {
+            final tryQ = int.tryParse(val);
+            if (tryQ != null && tryQ > 0) return tryQ;
+          }
+        }
+      }
+    }
+    return 1;
   }
 
   void _initTrackingListener() {
@@ -147,7 +219,7 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
             child: _buildTimeline(),
           ),
           _buildOrderDetailsCard(widget.order),
-          _buildVendorCard(widget.order),
+          _buildSupportCard(widget.order),
           const SizedBox(height: 20),
         ],
       ),
@@ -167,11 +239,25 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
       return 0;
     }();
 
-    final progress = ((currentIdx) /
-            (_trackingSteps.length > 1 ? _trackingSteps.length - 1 : 1) *
-            100)
-        .clamp(0, 100)
-        .toInt();
+    int progress = 0;
+    final normalizedStatus = widget.order.status.toLowerCase();
+    if (normalizedStatus == 'completed' || normalizedStatus == 'delivered') {
+      progress = 100;
+    } else {
+      for (var step in _trackingSteps) {
+        if (step['status'] == 'completed') {
+          final p = (step['percentage'] as num?)?.toInt() ?? 0;
+          if (p > progress) progress = p;
+        }
+      }
+      if (progress == 0) {
+        progress = ((currentIdx) /
+                (_trackingSteps.length > 1 ? _trackingSteps.length - 1 : 1) *
+                100)
+            .clamp(0, 100)
+            .toInt();
+      }
+    }
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -226,7 +312,7 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Live updates from vendor',
+            'Live updates on your project',
             style: AppTypography.small.copyWith(color: AppColors.textLight),
           ),
         ],
@@ -236,8 +322,17 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
 
   String _getCurrentStatusText() {
     if (_trackingSteps.isEmpty) {
-      return widget.order.status.replaceAll('-', ' ').toUpperCase();
+      return widget.order.status.toLowerCase().replaceAll('_', '-').replaceAll('-', ' ').toUpperCase();
     }
+    
+    // Check for rejected steps first (highest priority for customer visibility)
+    final rejected = _trackingSteps.where((s) => s['status'] == 'rejected');
+    if (rejected.isNotEmpty) return 'Action Required';
+
+    // Check for review
+    final underReview = _trackingSteps.where((s) => s['status'] == 'under_review');
+    if (underReview.isNotEmpty) return 'Quality Check in Progress';
+
     final inProgress =
         _trackingSteps.where((s) => s['status'] == 'in-progress');
     if (inProgress.isNotEmpty) return inProgress.first['title'] ?? '';
@@ -250,12 +345,13 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
 
   Widget _buildTimeline() {
     if (_trackingSteps.isEmpty) {
+      final normalizedStatus = widget.order.status.toLowerCase().replaceAll('_', '-');
       final activeStatuses = ['active', 'in-production', 'customer-confirmed', 'ready-to-ship'];
-      if (activeStatuses.contains(widget.order.status.toLowerCase())) {
+      if (activeStatuses.contains(normalizedStatus)) {
         // Return a virtual "Order Accepted" step if it's active but no steps are in DB yet
         return _buildVirtualStep(
           title: "Order Accepted",
-          description: "Your order has been accepted and is being prepared by the vendor.",
+          description: "Your order has been accepted and is being prepared.",
           status: "completed",
         );
       }
@@ -275,6 +371,8 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
         final step = _trackingSteps[index];
         final isCompleted = step['status'] == 'completed';
         final isInProgress = step['status'] == 'in-progress';
+        final isUnderReview = step['status'] == 'under_review';
+        final isRejected = step['status'] == 'rejected';
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,13 +383,19 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: isCompleted || isInProgress
+                  color: isCompleted
                       ? const Color(0xFF0D5C2F)
-                      : Theme.of(context).cardColor,
+                      : isUnderReview || isRejected
+                          ? const Color(0xFFC9A93C)
+                          : isInProgress
+                              ? const Color(0xFF0D5C2F)
+                              : Theme.of(context).cardColor,
                   border: Border.all(
                     color: isCompleted || isInProgress
                         ? const Color(0xFF0D5C2F)
-                        : AppColors.divider,
+                        : isUnderReview || isRejected
+                            ? const Color(0xFFC9A93C)
+                            : AppColors.divider,
                     width: 2,
                   ),
                   shape: BoxShape.circle,
@@ -299,9 +403,13 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
                 child: Icon(
                   isCompleted
                       ? Icons.check
-                      : isInProgress
-                          ? Icons.play_arrow
-                          : null,
+                      : isUnderReview
+                          ? Icons.hourglass_empty
+                          : isRejected
+                              ? Icons.priority_high
+                              : isInProgress
+                                  ? Icons.play_arrow
+                                  : null,
                   color: Colors.white,
                   size: 16,
                 ),
@@ -326,7 +434,7 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.divider),
+                  border: Border.all(color: isRejected ? Colors.red.withOpacity(0.3) : AppColors.divider),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,6 +464,14 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
                       style: const TextStyle(
                           color: AppColors.textMedium, fontSize: 12),
                     ),
+                    if (isRejected && step['qcFeedback'] != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          "Status Update: ${step['qcFeedback']}",
+                          style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w600),
+                        ),
+                      ),
                     const SizedBox(height: 6),
                     // Status chip
                     Container(
@@ -364,23 +480,35 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
                       decoration: BoxDecoration(
                         color: isCompleted
                             ? const Color(0xFFE8F5EE).withAlpha(40)
-                            : isInProgress
+                            : isUnderReview
                                 ? const Color(0xFFFFF5D6).withAlpha(40)
-                                : AppColors.divider.withAlpha(40),
+                                : isRejected
+                                    ? const Color(0xFFFFEBEE).withAlpha(40)
+                                    : isInProgress
+                                        ? const Color(0xFFFFF5D6).withAlpha(40)
+                                        : AppColors.divider.withAlpha(40),
                         borderRadius: BorderRadius.circular(99),
                       ),
                       child: Text(
                         isCompleted
                             ? '✓ Completed'
-                            : isInProgress
-                                ? '● In Progress'
-                                : '○ Pending',
+                            : isUnderReview
+                                ? '⧖ Quality Check'
+                                : isRejected
+                                    ? '⚠ Correction in Progress'
+                                    : isInProgress
+                                        ? '● In Progress'
+                                        : '○ Pending',
                         style: TextStyle(
                           color: isCompleted
                               ? const Color(0xFF0D5C2F)
-                              : isInProgress
+                              : isUnderReview
                                   ? const Color(0xFF8A6000)
-                                  : AppColors.textMedium,
+                                  : isRejected
+                                      ? Colors.red
+                                      : isInProgress
+                                          ? const Color(0xFF8A6000)
+                                          : AppColors.textMedium,
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
@@ -401,12 +529,11 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
                           ),
                         ]),
                       ),
-                    // Vendor-uploaded photos for this step
-                    if (isCompleted &&
-                        step['images'] != null &&
-                        (step['images'] as List).isNotEmpty)
-                      _buildImagesRow(
-                          List<String>.from(step['images'] as List)),
+                    // Vendor-uploaded media for this step
+                    if ((isCompleted || isUnderReview || isRejected) &&
+                        (step['mediaUrls'] != null || step['images'] != null))
+                      _buildMediaRow(
+                          List<String>.from((step['mediaUrls'] ?? step['images']) as List)),
                   ],
                 ),
               ),
@@ -417,7 +544,7 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
     );
   }
 
-  Widget _buildImagesRow(List<String> urls) {
+  Widget _buildMediaRow(List<String> urls) {
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: SizedBox(
@@ -426,42 +553,51 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
           scrollDirection: Axis.horizontal,
           itemCount: urls.length,
           separatorBuilder: (_, __) => const SizedBox(width: 8),
-          itemBuilder: (ctx, i) => GestureDetector(
-            onTap: () => _openFullscreen(urls[i]),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CachedNetworkImage(
-                imageUrl: urls[i],
-                width: 72,
-                height: 72,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Container(
-                  width: 72,
-                  height: 72,
+          itemBuilder: (ctx, i) {
+            final url = urls[i];
+            final isVideo = url.contains('.mp4') || url.contains('video_');
+            
+            return GestureDetector(
+              onTap: () => _openFullscreen(url, isVideo: isVideo),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  width: 72, height: 72,
                   color: Theme.of(context).scaffoldBackgroundColor,
-                  child: const Center(
-                    child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2)),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (isVideo)
+                        const Center(child: Icon(Icons.play_circle_fill, color: Color(0xFF0D5C2F), size: 32))
+                      else
+                        CachedNetworkImage(
+                          imageUrl: url,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
+                          errorWidget: (_, __, ___) => const Icon(Icons.broken_image_outlined, color: AppColors.textLight),
+                        ),
+                      if (isVideo)
+                        Positioned(
+                          bottom: 4, right: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+                            child: const Text('VIDEO', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                errorWidget: (_, __, ___) => Container(
-                  width: 72,
-                  height: 72,
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  child: const Icon(Icons.broken_image_outlined,
-                      color: AppColors.textLight),
-                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
   }
 
-  void _openFullscreen(String imageUrl) {
+  void _openFullscreen(String url, {bool isVideo = false}) {
+    // Basic photo viewer logic. For video, one would ideally use a video player.
     Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => Scaffold(
         backgroundColor: Colors.black,
@@ -471,22 +607,50 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
           elevation: 0,
         ),
         body: Center(
-          child: InteractiveViewer(
-            child: CachedNetworkImage(
-              imageUrl: imageUrl,
-              fit: BoxFit.contain,
-              placeholder: (_, __) => const Center(
-                  child: CircularProgressIndicator(color: Colors.white)),
-              errorWidget: (_, __, ___) =>
-                  const Icon(Icons.broken_image, color: Colors.white, size: 64),
-            ),
-          ),
+          child: isVideo 
+            ? const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.videocam, color: Colors.white, size: 64),
+                  SizedBox(height: 16),
+                  Text('Video content available in full view', style: TextStyle(color: Colors.white)),
+                ],
+              )
+            : InteractiveViewer(
+                child: CachedNetworkImage(
+                  imageUrl: url,
+                  fit: BoxFit.contain,
+                  placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+                  errorWidget: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white, size: 64),
+                ),
+              ),
         ),
       ),
     ));
   }
 
   Widget _buildOrderDetailsCard(OrderModel order) {
+    final int qty = _getValidQuantity();
+    final String cat = _extraDetails?['category'] ?? _extraDetails?['step1Category'] ?? 'N/A';
+    final String subCat = _extraDetails?['subCategory'] ?? _extraDetails?['step1SubCategory'] ?? 'N/A';
+    final String color = _extraDetails?['color'] ?? _extraDetails?['step1Color'] ?? 'N/A';
+    final String material = _extraDetails?['material'] ?? _extraDetails?['step1Material'] ?? 'N/A';
+    
+    String sizeStr = 'N/A';
+    if (_extraDetails?['size'] != null && _extraDetails!['size'].toString().isNotEmpty) {
+      sizeStr = _extraDetails!['size'].toString();
+    } else if (_extraDetails?['step2Measurements'] != null) {
+      final meas = _extraDetails!['step2Measurements'];
+      if (meas is Map) {
+        sizeStr = meas.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+      }
+    } else if (_extraDetails?['dimensions'] != null) {
+      sizeStr = _extraDetails!['dimensions'].toString();
+    }
+
+    final String orderDate = _formatDate(order.createdAt);
+    final String deliveryDate = order.expectedDelivery.isNotEmpty ? order.expectedDelivery : 'N/A';
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
@@ -500,11 +664,33 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
           const Text('Order Details',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           const SizedBox(height: 16),
-          _buildDetailRow(
-              Icons.inventory_2_outlined, 'Product:', order.productName),
-          _buildDetailRow(
-              Icons.numbers, 'Quantity:', '${order.quantity} units'),
-          _buildDetailRow(Icons.label_outline, 'Category:', 'Handicrafts'),
+          _buildDetailRow(Icons.inventory_2_outlined, 'Product:', () {
+            String pName = order.productName;
+            if (pName.isEmpty || pName.startsWith('Order #')) {
+              if (_extraDetails != null) {
+                pName = _extraDetails!['productName'] ?? _extraDetails!['step1ProductName'] ?? _extraDetails!['productType'] ?? pName;
+              }
+            }
+            return pName;
+          }()),
+          _buildDetailRow(Icons.numbers, 'Quantity:', '$qty units'),
+          if (cat != 'N/A') _buildDetailRow(Icons.category_outlined, 'Category:', cat),
+          if (subCat != 'N/A') _buildDetailRow(Icons.account_tree_outlined, 'Sub-Category:', subCat),
+          if (color != 'N/A') _buildDetailRow(Icons.color_lens_outlined, 'Color:', color),
+          if (sizeStr != 'N/A' && sizeStr.isNotEmpty) _buildDetailRow(Icons.straighten_outlined, 'Size:', sizeStr),
+          if (material != 'N/A') _buildDetailRow(Icons.texture_outlined, 'Material:', material),
+          const Divider(height: 24),
+          _buildDetailRow(Icons.calendar_today_outlined, 'Order Date:', orderDate),
+          _buildDetailRow(Icons.event_available_outlined, 'Delivery Date:', deliveryDate),
+          
+          if (order.confirmedPrice > 0 || order.unitPrice > 0 || (order.totalAmount > 0 && qty > 0))
+            _buildDetailRow(
+                Icons.sell_outlined,
+                'Unit Price:',
+                formatPKR(order.confirmedPrice > 0 
+                  ? (order.confirmedPrice / (qty > 0 ? qty : 1))
+                  : (order.unitPrice > 0 ? order.unitPrice : (order.totalAmount / (qty > 0 ? qty : 1))))),
+          
           if (order.confirmedPrice > 0 || order.totalAmount > 0)
             _buildDetailRow(
                 Icons.payments_outlined,
@@ -512,8 +698,6 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
                 formatPKR(order.confirmedPrice > 0
                     ? order.confirmedPrice
                     : order.totalAmount)),
-          _buildDetailRow(Icons.calendar_today_outlined, 'Delivery Date:',
-              order.expectedDelivery),
           _buildDetailRow(Icons.location_on_outlined, 'Delivery Location:',
               order.deliveryAddress),
         ],
@@ -530,7 +714,7 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
           Icon(icon, size: 16, color: AppColors.textMedium),
           const SizedBox(width: 12),
           SizedBox(
-              width: 100,
+              width: 110,
               child: Text(label,
                   style: AppTypography.small
                       .copyWith(color: AppColors.textMedium))),
@@ -543,7 +727,7 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
     );
   }
 
-  Widget _buildVendorCard(OrderModel order) {
+  Widget _buildSupportCard(OrderModel order) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
@@ -617,8 +801,10 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
                     'orderNumber': order.orderNumber.isNotEmpty
                         ? order.orderNumber
                         : order.id,
-                    'threadId':
-                        '${order.id}_CUSTOMER_${order.customerId}',
+                    'threadId': ChatMessage.buildOrderThreadId(
+                      orderId: order.id,
+                      customerId: order.customerId,
+                    ),
                   },
                 );
               },

@@ -83,6 +83,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         orderId: widget.orderId,
         text: text,
         customerName: userProvider.user?.name ?? '',
+        threadId: widget.threadId,
       );
     }
 

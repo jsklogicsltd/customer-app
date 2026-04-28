@@ -47,6 +47,7 @@ class RequestTimeline {
 class CustomRequest {
   final String id;
   final String customerId;
+  final String productName;
   final String category;
   final String subCategory;
   final String productType;
@@ -70,6 +71,7 @@ class CustomRequest {
   CustomRequest({
     required this.id,
     required this.customerId,
+    required this.productName,
     required this.category,
     required this.subCategory,
     required this.productType,
@@ -95,6 +97,7 @@ class CustomRequest {
     return CustomRequest(
       id: map['id'],
       customerId: map['customerId'] ?? '',
+      productName: map['productName'] ?? '',
       category: map['category'] ?? '',
       subCategory: map['subCategory'] ?? '',
       productType: map['productType'] ?? '',

@@ -20,6 +20,7 @@ class CustomRequestProvider extends ChangeNotifier {
   StreamSubscription? _requestsSub;
 
   // ── Step 1: Product Selection ──────────────────────────────────────────
+  String step1ProductName = '';
   String step1Category = '';
   String step1SubCategory = '';
   String step1ProductType = '';
@@ -98,6 +99,7 @@ class CustomRequestProvider extends ChangeNotifier {
   }
 
   void clearForm({bool notify = true}) {
+    step1ProductName = '';
     step1Category = '';
     step1SubCategory = '';
     step1ProductType = '';
@@ -142,6 +144,7 @@ class CustomRequestProvider extends ChangeNotifier {
       // 2. Save to Firestore
       final newRequest = {
         'customerId': user.uid,
+        'productName': step1ProductName,
         'category': step1Category,
         'subCategory': step1SubCategory,
         'productType': productLabel,
@@ -157,6 +160,7 @@ class CustomRequestProvider extends ChangeNotifier {
         'packaging': step3Packaging,
         'status': 'pending',
         'submittedDate': DateTime.now().toIso8601String(),
+        'createdAt': FieldValue.serverTimestamp(),
         'referenceImages': remoteImageUrls,
         'timeline': [
           {
@@ -235,8 +239,21 @@ class CustomRequestProvider extends ChangeNotifier {
         referenceId: requestId,
         referenceType: 'rfq',
       );
+
+      // Send notification to customer
+      if (_auth.currentUser != null) {
+        await NotificationService.sendNotification(
+          recipientId: _auth.currentUser!.uid,
+          recipientType: 'customer',
+          title: 'Order Activated',
+          body: 'Ap ka order ab active hogyaa hey ab ap es order ki live tracking dek sakty hooo',
+          type: 'order_active',
+          referenceId: orderId,
+          referenceType: 'order',
+        );
+      }
     } catch (e) {
-      debugPrint('Error sending quote acceptance notification: $e');
+      debugPrint('Error sending quote acceptance notifications: $e');
     }
   }
 }

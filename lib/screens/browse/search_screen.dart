@@ -6,7 +6,7 @@ import '../../core/constants/app_typography.dart';
 import '../../models/product.dart';
 import '../../providers/vendor_provider.dart';
 import '../../widgets/cards/product_card.dart';
-import '../../widgets/cards/vendor_card.dart';
+import '../../widgets/cards/product_card.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -26,7 +26,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 1, vsync: this);
     _searchCtrl.addListener(() => setState(() => _query = _searchCtrl.text));
   }
 
@@ -39,8 +39,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final vendorProvider = context.read<VendorProvider>();
-    final vendors = vendorProvider.search(_query);
+    // Removed vendor search
 
     return Scaffold(
       backgroundColor: AppColors.bgLight,
@@ -52,7 +51,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
           controller: _searchCtrl,
           autofocus: true,
           decoration: InputDecoration(
-            hintText: 'Search products, vendors...',
+            hintText: 'Search products...',
             border: InputBorder.none,
             hintStyle: AppTypography.body.copyWith(color: AppColors.textLight),
             suffixIcon: _query.isNotEmpty
@@ -65,11 +64,11 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
           style: AppTypography.body,
         ),
       ),
-      body: _query.isEmpty ? _buildInitialState() : _buildSearchResults(vendors),
+      body: _query.isEmpty ? _buildInitialState() : _buildSearchResults(),
     );
   }
 
-  Widget _buildSearchResults(List vendors) {
+  Widget _buildSearchResults() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('products')
@@ -91,7 +90,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
           return Product.fromMap(data, doc.id);
         }).toList();
 
-        return _buildResults(products, vendors, context);
+        return _buildResults(products, context);
       },
     );
   }
@@ -143,7 +142,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildResults(List products, List vendors, BuildContext context) {
+  Widget _buildResults(List products, BuildContext context) {
     return Column(
       children: [
         Container(
@@ -156,7 +155,6 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
             indicatorColor: AppColors.primaryGreen,
             tabs: [
               Tab(text: 'Products (${products.length})'),
-              Tab(text: 'Vendors (${vendors.length})'),
             ],
           ),
         ),
@@ -174,13 +172,6 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
                       ),
                       itemCount: products.length,
                       itemBuilder: (ctx, i) => ProductCard(product: products[i]),
-                    ),
-              // Vendors tab
-              vendors.isEmpty
-                  ? const Center(child: Text('No vendors found'))
-                  : ListView.builder(
-                      itemCount: vendors.length,
-                      itemBuilder: (ctx, i) => VendorCard(vendor: vendors[i]),
                     ),
             ],
           ),

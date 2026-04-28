@@ -10,6 +10,10 @@ import '../../widgets/orders/split_quote_card.dart';
 import '../../widgets/orders/active_split_order_card.dart';
 import '../../widgets/orders/order_card.dart';
 import '../../core/constants/app_typography.dart';
+import '../../models/order.dart';
+
+import '../../models/quote.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   final int initialTab;
@@ -102,13 +106,78 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
         controller: _tabController,
         children: [
           // All Tab
-          Consumer<OrderProvider>(
-            builder: (_, p, __) => OrderList(
-              orders: p.allOrders,
-              emptyTitle: 'No orders yet',
-              emptySubtitle: 'Your orders will appear here',
-              emptyIcon: Icons.receipt_long_outlined,
-            ),
+          Consumer2<OrderProvider, QuoteProvider>(
+            builder: (_, op, qp, __) {
+              final customQuotes = qp.pendingQuotes;
+              final allOrders = op.allOrders;
+
+              // Filter out orders that are better represented by custom quote cards
+              final filteredOrders = allOrders.where((o) =>
+                !customQuotes.any((q) => q.orderId == o.id)
+              ).toList();
+
+              // Combine all items for sorting
+              final List<dynamic> allItems = [
+                ...customQuotes,
+                ...filteredOrders,
+              ];
+
+              // Sort by date (descending)
+              allItems.sort((a, b) {
+                DateTime getDateTime(dynamic item) {
+                  if (item is OrderModel) {
+                    return (item.updatedAt as Timestamp?)?.toDate() 
+                        ?? (item.createdAt as Timestamp?)?.toDate() 
+                        ?? DateTime(2000);
+                  } else if (item is QuoteModel) {
+                    return (item.createdAt as Timestamp?)?.toDate() 
+                        ?? DateTime(2000);
+                  }
+                  return DateTime(2000);
+                }
+                return getDateTime(b).compareTo(getDateTime(a));
+              });
+
+              if (allItems.isEmpty) {
+                return OrderList(
+                  orders: const [],
+                  emptyTitle: 'No orders yet',
+                  emptySubtitle: 'Your orders will appear here',
+                  emptyIcon: Icons.receipt_long_outlined,
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: allItems.length,
+                itemBuilder: (context, index) {
+                  final item = allItems[index];
+                  if (item is OrderModel) {
+                    if (item.isSplitOrder) {
+                      final status = item.status.toLowerCase().replaceAll('_', '-');
+                      final isQuote = ['quote-sent', 'quote-sent-to-customer', 'split-confirmed'].contains(status);
+                      if (isQuote) {
+                        return SplitQuoteCard(order: item, onAccepted: _switchToActiveTab);
+                      } else {
+                        return ActiveSplitOrderCard(order: item);
+                      }
+                    } else {
+                      final status = item.status.toLowerCase().replaceAll('_', '-');
+                      final isQuote = ['quote-sent', 'quote-sent-to-customer', 'split-confirmed'].contains(status);
+                      if (isQuote) {
+                        return OrderQuoteCard(
+                          order: item,
+                          onAccepted: _switchToActiveTab,
+                        );
+                      }
+                      return OrderCard(order: item);
+                    }
+                  } else {
+                    return QuoteCard(quote: item);
+                  }
+                },
+              );
+            },
           ),
           // Pending Tab
           Consumer<OrderProvider>(
@@ -176,12 +245,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
                 padding: const EdgeInsets.all(16),
                 children: [
                   ...customQuotes.map((q) => QuoteCard(quote: q)),
-                  ...orderQuotes.map((o) => OrderQuoteCard(
-                        order: o,
-                        onAccepted: _switchToActiveTab,
-                      )),
+                  ...orderQuotes
+                      .where((o) =>
+                          !customQuotes.any((q) => q.orderId == o.id) &&
+                          !o.isSplitOrder)
+                      .map((o) => OrderQuoteCard(
+                            order: o,
+                            onAccepted: _switchToActiveTab,
+                          )),
                   ...splitQuotes.map((s) => SplitQuoteCard(
-                        splitOrder: s,
+                        order: s,
                         onAccepted: _switchToActiveTab,
                       )),
                 ],
@@ -234,12 +307,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen>
               return ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  ...orders.map((o) => OrderCard(
+                  ...orders.where((o) => !o.isSplitOrder).map((o) => OrderCard(
                         order: o,
                         isActive: true,
                       )),
-                  ...splitOrders.map((s) => ActiveSplitOrderCard(
-                        splitOrder: s,
+                  ...orders.where((o) => o.isSplitOrder).map((s) => ActiveSplitOrderCard(
+                        order: s,
                       )),
                 ],
               );

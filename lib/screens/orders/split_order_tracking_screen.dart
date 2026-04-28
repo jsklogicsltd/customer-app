@@ -5,7 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
-import '../../models/split_order.dart';
+import '../../models/order.dart';
 
 class SplitOrderTrackingScreen extends StatelessWidget {
   final String splitOrderId;
@@ -14,7 +14,7 @@ class SplitOrderTrackingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('splitOrders').doc(splitOrderId).snapshots(),
+      stream: FirebaseFirestore.instance.collection('orders').doc(splitOrderId).snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.primaryGreen)));
@@ -25,12 +25,12 @@ class SplitOrderTrackingScreen extends StatelessWidget {
           return const Scaffold(body: Center(child: Text('Split order not found')));
         }
 
-        final splitOrder = SplitOrderModel.fromFirestore(doc);
+        final splitOrder = OrderModel.fromFirestore(doc);
 
         return Scaffold(
           backgroundColor: AppColors.bgLight,
           appBar: AppBar(
-            title: Text(splitOrder.orderNumber.isNotEmpty ? splitOrder.orderNumber : splitOrder.splitOrderId, style: AppTypography.h3),
+            title: Text(splitOrder.orderNumber.isNotEmpty ? splitOrder.orderNumber : splitOrder.id, style: AppTypography.h3),
             backgroundColor: Colors.white,
             elevation: 0,
             leading: IconButton(
@@ -56,7 +56,7 @@ class SplitOrderTrackingScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(SplitOrderModel splitOrder) {
+  Widget _buildHeader(OrderModel splitOrder) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(

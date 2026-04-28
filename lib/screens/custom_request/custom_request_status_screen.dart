@@ -23,7 +23,7 @@ class CustomRequestStatusScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.bgLight,
       appBar: AppBar(
-        title: Text(request.id),
+        title: Text(request.productName.isNotEmpty ? request.productName : request.id),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
@@ -47,6 +47,8 @@ class CustomRequestStatusScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
+                  if (request.productName.isNotEmpty)
+                    _SummaryItem(label: 'Name', value: request.productName),
                   _SummaryItem(label: 'Product', value: request.productType),
                   _SummaryItem(label: 'Quantity', value: '${request.quantity} units'),
                   _SummaryItem(label: 'Budget', value: '${formatPKR(request.budgetMin)} — ${formatPKR(request.budgetMax)}'),
