@@ -571,6 +571,7 @@ class OrderProvider extends ChangeNotifier {
       // 1. Update parent order status
       batch.update(_db.collection('orders').doc(orderId), {
         'status': 'customer-confirmed',
+        'progressPercent': 11, // Initial progress like normal orders
         'customerConfirmedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -679,6 +680,7 @@ class OrderProvider extends ChangeNotifier {
     try {
       await _db.collection('orders').doc(orderId).update({
         'status': 'completed',
+        'progressPercent': 100,
         'completedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });

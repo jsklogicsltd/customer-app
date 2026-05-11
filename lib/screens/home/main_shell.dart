@@ -16,7 +16,7 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   void _onTap(int index) {
     if (index == 2) {
-      // Custom request tab — use push to keep the shell alive and stable
+      // Use push to overlay the wizard without destroying shell state, improving speed
       context.push('/custom-request/step1');
       return;
     }

@@ -141,7 +141,22 @@ class _SplitOrderTrackingWidgetState extends State<SplitOrderTrackingWidget> {
     final Map<String, Map<String, dynamic>> m = {};
     for (final doc in snap.docs) {
       final d = doc.data() as Map<String, dynamic>;
-      final rawSteps = d['trackingSteps'] as List?;
+      var rawSteps = d['trackingSteps'] as List?;
+      
+      // Fallback to 'timeline' if trackingSteps is missing
+      if (rawSteps == null || rawSteps.isEmpty) {
+        final rawTimeline = d['timeline'] as List?;
+        if (rawTimeline != null && rawTimeline.isNotEmpty) {
+          rawSteps = rawTimeline.map((t) => {
+            'stepId': t['step'] ?? '',
+            'title': t['step'] ?? '',
+            'description': t['note'] ?? '',
+            'status': (t['completed'] == true || t['completed'] == 1) ? 'completed' : 'pending',
+            'completedAt': t['date'],
+            'expectedDate': t['date'],
+          }).toList();
+        }
+      }
       
       // Use assignedQuantity if quantity is missing (vendor app field mapping)
       final qty = d['quantity'] ?? d['assignedQuantity'] ?? 0;
@@ -153,7 +168,10 @@ class _SplitOrderTrackingWidgetState extends State<SplitOrderTrackingWidget> {
         'unit': d['unit'] ?? 'units',
         'status': d['status'] ?? '',
         'trackingNumber': d['trackingNumber'],
-        'steps': rawSteps?.map((s) => Map<String, dynamic>.from(s)).toList() ?? [],
+        'vendorTimeline': d['vendorTimeline'] ?? d['productionTimeline'] ?? 'N/A',
+        'steps': rawSteps != null 
+            ? List<Map<String, dynamic>>.from(rawSteps.map((s) => Map<String, dynamic>.from(s as Map))) 
+            : <Map<String, dynamic>>[],
       };
     }
     
@@ -200,7 +218,12 @@ class _SplitOrderTrackingWidgetState extends State<SplitOrderTrackingWidget> {
         children: [
           _OrderHeaderCard(order: widget.order),
           const SizedBox(height: 16),
-          _OrderDetailsCard(order: widget.order, extraDetails: _extraDetails, qty: _getValidQuantity()),
+          _OrderDetailsCard(
+            order: widget.order, 
+            extraDetails: _extraDetails, 
+            qty: _getValidQuantity(),
+            maxVendorTimeline: _calculateMaxVendorTimeline(),
+          ),
           const SizedBox(height: 16),
           if (result != null) ...[
             _UnifiedProgressCard(result: result),
@@ -221,6 +244,33 @@ class _SplitOrderTrackingWidgetState extends State<SplitOrderTrackingWidget> {
         ],
       ),
     );
+  }
+
+  String? _calculateMaxVendorTimeline() {
+    if (_partsMap.isEmpty) return null;
+    int maxDays = 0;
+    String? maxStr;
+    
+    for (final part in _partsMap.values) {
+      final timeline = part['vendorTimeline']?.toString();
+      if (timeline != null && timeline != 'N/A') {
+        final match = RegExp(r'(\d+)').firstMatch(timeline);
+        if (match != null) {
+          final days = int.tryParse(match.group(1)!);
+          if (days != null && days > maxDays) {
+            maxDays = days;
+            maxStr = timeline;
+          }
+        } else {
+          final days = int.tryParse(timeline);
+          if (days != null && days > maxDays) {
+            maxDays = days;
+            maxStr = timeline;
+          }
+        }
+      }
+    }
+    return maxStr;
   }
 }
 
@@ -269,8 +319,9 @@ class _OrderDetailsCard extends StatelessWidget {
   final OrderModel order;
   final Map<String, dynamic>? extraDetails;
   final int qty;
+  final String? maxVendorTimeline;
   
-  const _OrderDetailsCard({required this.order, required this.extraDetails, required this.qty});
+  const _OrderDetailsCard({required this.order, required this.extraDetails, required this.qty, this.maxVendorTimeline});
 
   String _formatDate(dynamic timestamp) {
     if (timestamp == null) return 'N/A';
@@ -323,7 +374,42 @@ class _OrderDetailsCard extends StatelessWidget {
     }
 
     final String orderDate = _formatDate(order.createdAt);
-    final String deliveryDate = order.expectedDelivery.isNotEmpty ? order.expectedDelivery : 'N/A';
+    
+    String deliveryDate = 'N/A';
+    if (order.expectedDelivery.isNotEmpty) {
+      deliveryDate = order.expectedDelivery;
+    } else if (extraDetails?['expectedDelivery'] != null) {
+      deliveryDate = extraDetails!['expectedDelivery'].toString();
+    } else if (extraDetails?['deliveryDate'] != null) {
+      deliveryDate = extraDetails!['deliveryDate'].toString();
+    } else if (extraDetails?['deadline'] != null) {
+      deliveryDate = extraDetails!['deadline'].toString();
+    } else if (extraDetails?['timeline'] != null || extraDetails?['step1Timeline'] != null) {
+      // Calculate from timeline (lead time in days)
+      final timelineVal = extraDetails?['timeline'] ?? extraDetails?['step1Timeline'];
+      int? days;
+      if (timelineVal is num) days = timelineVal.toInt();
+      else if (timelineVal is String) {
+        // Try to extract number from string like "5 days"
+        final match = RegExp(r'(\d+)').firstMatch(timelineVal);
+        if (match != null) days = int.tryParse(match.group(1)!);
+        else days = int.tryParse(timelineVal);
+      }
+      
+      if (days != null) {
+        DateTime createdDateTime;
+        if (order.createdAt is Timestamp) {
+          createdDateTime = (order.createdAt as Timestamp).toDate();
+        } else if (order.createdAt is DateTime) {
+          createdDateTime = order.createdAt;
+        } else {
+          createdDateTime = DateTime.now();
+        }
+        final date = createdDateTime.add(Duration(days: days));
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        deliveryDate = '${date.day} ${months[date.month - 1]} ${date.year}';
+      }
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -374,6 +460,9 @@ class _OrderDetailsCard extends StatelessWidget {
                     : order.totalAmount)),
           _buildDetailRow(Icons.location_on_outlined, 'Delivery Location:',
               order.deliveryAddress),
+          
+          if (maxVendorTimeline != null)
+            _buildDetailRow(Icons.timer_outlined, 'Vendor Timeline:', maxVendorTimeline!),
         ],
       ),
     );
@@ -666,6 +755,8 @@ class _VendorCard extends StatelessWidget {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(vendorName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                 Text('$qty $unit · $vendorPct% complete', style: const TextStyle(color: AppColors.textMedium, fontSize: 11)),
+                if (partData['vendorTimeline'] != 'N/A')
+                  Text('Promised: ${partData['vendorTimeline']}', style: const TextStyle(color: _primary, fontSize: 10, fontWeight: FontWeight.bold)),
               ])),
               // mini progress
               SizedBox(

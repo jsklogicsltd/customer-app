@@ -18,6 +18,8 @@ class Product {
   final String vendorId;
   final String vendorName;
   final String status;
+  final List<String> colorNames;
+  final String fullDescription;
   final String videoUrl;
 
   // UI Compatibility fields (inherited or added for backward compatibility)
@@ -52,6 +54,8 @@ class Product {
     required this.vendorName,
     required this.status,
     required this.videoUrl,
+    this.colorNames = const [],
+    this.fullDescription = '',
     this.rating = 4.5,
     this.reviewCount = 20,
     this.features = const [],
@@ -80,6 +84,13 @@ class Product {
       return value.toString();
     }
 
+    List<String> getList(dynamic value) {
+      if (value == null) return [];
+      if (value is List) return List<String>.from(value);
+      if (value is String) return [value];
+      return [];
+    }
+
     return Product(
       id: id,
       name: safeString(data['name'] ?? data['productName']),
@@ -90,8 +101,8 @@ class Product {
       category: safeString(data['category']),
       productType: safeString(data['productType'] ?? data['type']),
       material: safeString(data['material']),
-      availableSizes: List<String>.from(data['availableSizes'] ?? []),
-      colors: List<String>.from(data['colors'] ?? []),
+      availableSizes: getList(data['availableSizes'] ?? data['sizes'] ?? data['sizeList']),
+      colors: getList(data['colors'] ?? data['availableColors'] ?? data['color']),
       careInstructions: safeString(data['careInstructions']),
       packagingType: safeString(data['packagingType']),
       searchTags: List<String>.from(data['searchTags'] ?? data['tags'] ?? []),
@@ -101,9 +112,13 @@ class Product {
       vendorName: safeString(data['vendorName']),
       status: safeString(data['status'], 'active'),
       videoUrl: safeString(data['videoUrl']),
+      colorNames: data['colorName'] is String 
+          ? (data['colorName'] as String).split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList()
+          : getList(data['colorNames'] ?? data['colors_names'] ?? []),
+      fullDescription: safeString(data['fullDescription'] ?? data['longDescription'] ?? data['description']),
       rating: (data['rating'] ?? 4.5).toDouble(),
       reviewCount: (data['reviewCount'] ?? 20).toInt(),
-      features: List<String>.from(data['features'] ?? []),
+      features: getList(data['features'] ?? data['keyFeatures'] ?? data['highlights'] ?? []),
       subCategory: safeString(data['subCategory']),
       leadTime: safeString(data['leadTime'], '7 days'),
       moq: (data['moq'] ?? 1).toInt(),

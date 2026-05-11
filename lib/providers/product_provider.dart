@@ -93,6 +93,14 @@ class ProductProvider extends ChangeNotifier {
     return products.where((p) => ids.contains(p.id)).toList();
   }
 
+  List<Product> getProductsByCategory(String categoryName) {
+    final normalizedSearch = categoryName.toLowerCase().replaceAll("'s", "").replaceAll(" ", "");
+    return products.where((p) {
+      final normalizedCategory = p.category.toLowerCase().replaceAll("'s", "").replaceAll(" ", "");
+      return normalizedCategory == normalizedSearch;
+    }).toList();
+  }
+
   void clearFilters() {
     _searchQuery = '';
     _categoryFilter = null;

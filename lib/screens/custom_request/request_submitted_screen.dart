@@ -92,9 +92,13 @@ class _RequestSubmittedScreenState extends State<RequestSubmittedScreen>
                 label: 'Back to Home',
                 type: ButtonType.outlined,
                 onPressed: () {
-                  Future.delayed(const Duration(milliseconds: 100), () {
-                    if (context.mounted) context.go('/home');
-                  });
+                  if (context.mounted) {
+                    // Use post-frame callback to ensure the current screen's lifecycle 
+                    // is stable before transitioning back to the shell
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (context.mounted) context.go('/home');
+                    });
+                  }
                 },
               ),
             ],

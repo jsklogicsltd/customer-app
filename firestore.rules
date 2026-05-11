@@ -24,22 +24,18 @@ service cloud.firestore {
         resource.data.customerId == request.auth.uid || 
         resource.data.vendorId == request.auth.uid
       ));
-      // Allow any authenticated user to create (for catalog orders)
       allow create: if isAuthenticated();
-      // Vendor or customer or admin can update their own orders
       allow update: if isAdmin() || (isAuthenticated() && (
         resource.data.customerId == request.auth.uid || 
         resource.data.vendorId == request.auth.uid
       ));
       allow delete: if isAdmin();
       
-      // orderParts subcollection
       match /orderParts/{partId} {
         allow read: if isAdmin() || (isAuthenticated() && (
           get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid || 
           resource.data.vendorId == request.auth.uid
         ));
-        // Vendor can update their assigned part
         allow update: if isAdmin() || (isAuthenticated() && (
           get(/databases/$(database)/documents/orders/$(orderId)).data.customerId == request.auth.uid || 
           resource.data.vendorId == request.auth.uid
@@ -50,19 +46,26 @@ service cloud.firestore {
       }
     }
     
-    // Collection Group rule for orderParts (required for Vendor App's collectionGroup query)
     match /{path=**}/orderParts/{partId} {
       allow read: if isAdmin() || (isAuthenticated() && resource.data.vendorId == request.auth.uid);
     }
     
-    // Products
+    // Products - Open up update for metrics tracking
     match /products/{productId} {
       allow read: if true;
+      allow update: if true; 
       allow write: if isAdmin() || (isAuthenticated() && (
         resource == null || resource.data.vendorId == request.auth.uid
       ));
     }
     
+    // Reviews - Open up read
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+
     // Custom Requests
     match /customRequests/{requestId} {
       allow read: if isAdmin() || isAuthenticated();
@@ -80,21 +83,14 @@ service cloud.firestore {
       ));
     }
     
-    // Quotes - Admin creates quotes and assigns to vendors.
-    // Vendor must be able to READ and UPDATE the quote assigned to them.
     match /quotes/{quoteId} {
-      // Read: vendor can read quotes where they are the assigned vendor
       allow read: if isAdmin() || (isAuthenticated() && (
         resource.data.customerId == request.auth.uid || 
         resource.data.vendorId == request.auth.uid
       ));
-      // Create: admin or vendor creating their own quote
       allow create: if isAdmin() || (isAuthenticated() && 
         request.resource.data.vendorId == request.auth.uid
       );
-      // Update: admin OR the vendor who is assigned to this quote OR the customer
-      // We check resource.data.vendorId (existing doc) so vendor can update even
-      // though they are not setting vendorId in the update payload.
       allow update: if isAdmin() || (isAuthenticated() && (
         resource.data.vendorId == request.auth.uid ||
         resource.data.customerId == request.auth.uid
@@ -102,7 +98,6 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     
-    // Bids collection - Vendor submits bids here for history tracking
     match /bids/{bidId} {
       allow read: if isAdmin() || (isAuthenticated() && 
         resource.data.vendorId == request.auth.uid
@@ -114,13 +109,11 @@ service cloud.firestore {
       );
     }
     
-    // Vendors
     match /vendors/{vendorId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin() || isOwner(vendorId);
     }
     
-    // Split Orders
     match /splitOrders/{orderId} {
       allow read: if isAdmin() || (isAuthenticated() && 
         resource.data.customerId == request.auth.uid
@@ -130,7 +123,6 @@ service cloud.firestore {
       );
     }
     
-    // Users & Admin Users
     match /users/{userId} {
       allow read: if isAdmin() || isOwner(userId) || isAuthenticated();
       allow write: if isAdmin() || isOwner(userId);
@@ -141,7 +133,6 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Activities
     match /activities/{activityId} {
       allow read: if isAdmin() || (isAuthenticated() && 
         resource.data.vendorId == request.auth.uid
@@ -149,29 +140,24 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Audit Log - Admin only
     match /auditLog/{logId} {
       allow read, write: if isAdmin();
     }
     
-    // Quality Reports
     match /qualityReports/{reportId} {
       allow read, write: if isAdmin() || isAuthenticated();
     }
     
-    // Notifications
     match /notifications/{notifId} {
       allow read: if isAuthenticated() && resource.data.recipientId == request.auth.uid;
       allow write: if isAuthenticated();
     }
 
-    // Messages / Chat
     match /messages/{messageId} {
       allow read: if isAuthenticated(); 
       allow write: if isAuthenticated();
     }
     
-    // Global catch-all - Admin can access everything
     match /{document=**} {
       allow read: if isAdmin();
       allow write: if isAdmin();

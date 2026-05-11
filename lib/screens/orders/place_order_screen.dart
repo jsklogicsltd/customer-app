@@ -94,7 +94,7 @@ class _PlaceOrderScreenState extends State<PlaceOrderScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: AppCachedImage(
-                            url: product.images.first, width: 72, height: 72),
+                            url: product.mainPhotoUrl, width: 72, height: 72),
                       ),
                       const SizedBox(width: 12),
                       Expanded(

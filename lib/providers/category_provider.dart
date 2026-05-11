@@ -6,7 +6,7 @@ import '../data/mock/mock_categories.dart';
 
 class CategoryProvider extends ChangeNotifier {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  List<AppCategory> _categories = [];
+  List<AppCategory> _categories = mockCategories;
   List<Map<String, dynamic>> _hierarchy = mockCategoriesHierarchy;
   bool _isLoading = false;
   StreamSubscription? _sub;
@@ -24,20 +24,26 @@ class CategoryProvider extends ChangeNotifier {
   void _init() {
     _sub = _db.collection('Categories').snapshots().listen((snapshot) {
       try {
-        _categories = snapshot.docs.map((doc) {
-          final data = doc.data();
-          data['id'] = doc.id;
-          return AppCategory.fromMap(data);
-        }).toList();
-        debugPrint('CategoryProvider: ${_categories.length} categories loaded');
+        if (snapshot.docs.isNotEmpty) {
+          _categories = snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return AppCategory.fromMap(data);
+          }).toList();
+        } else {
+          // If Firestore is empty, keep using mockCategories
+          _categories = mockCategories;
+        }
       } catch (e) {
         debugPrint('Error parsing categories: $e');
+        _categories = mockCategories;
       } finally {
         _isLoading = false;
         notifyListeners();
       }
     }, onError: (e) {
       debugPrint('Error fetching categories: $e');
+      _categories = mockCategories;
       _isLoading = false;
       notifyListeners();
     });

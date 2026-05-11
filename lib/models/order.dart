@@ -105,6 +105,7 @@ class OrderModel {
   final dynamic rfqDeadline;
   final dynamic updatedAt;
   final List<String> subOrders;
+  final String timelineDuration;
   
   // Split Order Fields
   final double splitTotalVendorCost;
@@ -146,6 +147,7 @@ class OrderModel {
     this.splitTotalCommission = 0,
     this.splitCustomerFinalPrice = 0,
     this.subOrders = const [],
+    this.timelineDuration = '',
   });
 
   // Alias for fromMap to match expected usage in some parts of the app
@@ -222,6 +224,7 @@ class OrderModel {
           .toList() ?? [],
       currentStepId: toStr(d['currentStepId']),
       currentStepTitle: toStr(d['currentStepTitle']),
+      timelineDuration: d['timeline'] is String ? d['timeline'] as String : (d['promisedTimeline']?.toString() ?? d['vendorTimeline']?.toString() ?? ''),
     );
   }
 }

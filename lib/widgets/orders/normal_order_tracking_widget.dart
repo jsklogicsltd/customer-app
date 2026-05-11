@@ -70,6 +70,18 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
         }
       }
 
+      // 4. Also fetch quote details if possible to get lead time/delivery info
+      if (widget.order.quoteId.isNotEmpty) {
+        final quoteDoc = await FirebaseFirestore.instance.collection('quotes').doc(widget.order.quoteId).get();
+        if (quoteDoc.exists) {
+          final quoteData = quoteDoc.data()!;
+          merged['promisedTimeline'] = quoteData['timeline'];
+          if (quoteData['expectedDelivery'] != null) {
+            merged['expectedDelivery'] = quoteData['expectedDelivery'];
+          }
+        }
+      }
+
       if (mounted) {
         setState(() {
           _extraDetails = merged;
@@ -116,11 +128,27 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
         debugPrint(
             '=== [Tracking] trackingSteps field: ${data["trackingSteps"]}');
         debugPrint('=== [Tracking] status: ${data["status"]}');
-        final steps = data['trackingSteps'] as List?;
+        var steps = data['trackingSteps'] as List?;
+        
+        // Fallback to 'timeline' if trackingSteps is missing
+        if (steps == null || steps.isEmpty) {
+          final timelineRaw = data['timeline'] as List?;
+          if (timelineRaw != null && timelineRaw.isNotEmpty) {
+            steps = timelineRaw.map((t) => {
+              'stepId': t['step'] ?? '',
+              'title': t['step'] ?? '',
+              'description': t['note'] ?? '',
+              'status': (t['completed'] == true || t['completed'] == 1) ? 'completed' : 'pending',
+              'completedAt': t['date'],
+              'expectedDate': t['date'],
+            }).toList();
+          }
+        }
+
         setState(() {
           if (steps != null && steps.isNotEmpty) {
             _trackingSteps =
-                steps.map((s) => Map<String, dynamic>.from(s)).toList();
+                steps.map((s) => Map<String, dynamic>.from(s as Map)).toList();
           }
           if (data['trackingNumber'] != null) {
             _trackingNumber = data['trackingNumber'];
@@ -149,14 +177,30 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
       }
       if (mounted && snapshot.docs.isNotEmpty) {
         final partData = snapshot.docs.first.data();
-        final steps = partData['trackingSteps'] as List?;
+        var steps = partData['trackingSteps'] as List?;
+        
+        // Fallback to 'timeline' if trackingSteps is missing
+        if (steps == null || steps.isEmpty) {
+          final timelineRaw = partData['timeline'] as List?;
+          if (timelineRaw != null && timelineRaw.isNotEmpty) {
+            steps = timelineRaw.map((t) => {
+              'stepId': t['step'] ?? '',
+              'title': t['step'] ?? '',
+              'description': t['note'] ?? '',
+              'status': (t['completed'] == true || t['completed'] == 1) ? 'completed' : 'pending',
+              'completedAt': t['date'],
+              'expectedDate': t['date'],
+            }).toList();
+          }
+        }
+
         final tNum = partData['trackingNumber'] as String?;
         debugPrint('=== [Tracking] Using part trackingSteps: $steps');
 
         setState(() {
           if (_trackingSteps.isEmpty && steps != null) {
             _trackingSteps =
-                steps.map((s) => Map<String, dynamic>.from(s)).toList();
+                steps.map((s) => Map<String, dynamic>.from(s as Map)).toList();
           }
           if (_trackingNumber == null && tNum != null) {
             _trackingNumber = tNum;
@@ -649,7 +693,41 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
     }
 
     final String orderDate = _formatDate(order.createdAt);
-    final String deliveryDate = order.expectedDelivery.isNotEmpty ? order.expectedDelivery : 'N/A';
+    
+    String deliveryDate = 'N/A';
+    if (order.expectedDelivery.isNotEmpty) {
+      deliveryDate = order.expectedDelivery;
+    } else if (_extraDetails?['expectedDelivery'] != null) {
+      deliveryDate = _extraDetails!['expectedDelivery'].toString();
+    } else if (_extraDetails?['deliveryDate'] != null) {
+      deliveryDate = _extraDetails!['deliveryDate'].toString();
+    } else if (_extraDetails?['deadline'] != null) {
+      deliveryDate = _extraDetails!['deadline'].toString();
+    } else if (_extraDetails?['promisedTimeline'] != null) {
+      // Calculate from timeline (lead time in days)
+      final timelineVal = _extraDetails!['promisedTimeline'];
+      int? days;
+      if (timelineVal is num) days = timelineVal.toInt();
+      else if (timelineVal is String) {
+        // Try to extract number from string like "5 days"
+        final match = RegExp(r'(\d+)').firstMatch(timelineVal);
+        if (match != null) days = int.tryParse(match.group(1)!);
+        else days = int.tryParse(timelineVal);
+      }
+      
+      if (days != null) {
+        DateTime createdDateTime;
+        if (order.createdAt is Timestamp) {
+          createdDateTime = (order.createdAt as Timestamp).toDate();
+        } else if (order.createdAt is DateTime) {
+          createdDateTime = order.createdAt;
+        } else {
+          createdDateTime = DateTime.now();
+        }
+        final date = createdDateTime.add(Duration(days: days));
+        deliveryDate = '${date.day} ${_monthName(date.month)} ${date.year}';
+      }
+    }
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -700,6 +778,10 @@ class _NormalOrderTrackingWidgetState extends State<NormalOrderTrackingWidget> {
                     : order.totalAmount)),
           _buildDetailRow(Icons.location_on_outlined, 'Delivery Location:',
               order.deliveryAddress),
+          
+          if (_extraDetails?['promisedTimeline'] != null || _extraDetails?['vendorTimeline'] != null || _extraDetails?['timeline'] != null)
+            _buildDetailRow(Icons.timer_outlined, 'Vendor Timeline:', 
+                (_extraDetails?['promisedTimeline'] ?? _extraDetails?['vendorTimeline'] ?? _extraDetails?['timeline']).toString()),
         ],
       ),
     );

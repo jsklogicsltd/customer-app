@@ -322,9 +322,29 @@ class OrderCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Text(
-            'Created: ${formatDate(order.createdAt)}',
-            style: AppTypography.caption.copyWith(color: AppColors.textLight),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Created: ${formatDate(order.createdAt)}',
+                style: AppTypography.caption.copyWith(color: AppColors.textLight),
+              ),
+              if (order.expectedDelivery.isNotEmpty || order.timelineDuration.isNotEmpty)
+                Row(
+                  children: [
+                    const Icon(Icons.event_available_outlined, size: 14, color: AppColors.textLight),
+                    const SizedBox(width: 4),
+                    Text(
+                      order.expectedDelivery.isNotEmpty ? 'Delivery: ${order.expectedDelivery}' : order.timelineDuration,
+                      style: AppTypography.caption.copyWith(color: AppColors.textMedium, fontWeight: FontWeight.bold),
+                    ),
+                    if (order.expectedDelivery.isNotEmpty && order.timelineDuration.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Text('(${order.timelineDuration})', style: AppTypography.caption.copyWith(color: AppColors.textLight)),
+                    ],
+                  ],
+                ),
+            ],
           ),
         ],
       ),

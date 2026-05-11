@@ -316,11 +316,73 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           color: AppColors.textMedium,
                         ),
                       ),
+                      if (product.fullDescription.isNotEmpty && 
+                          product.fullDescription != product.description)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 8),
+                              Text(
+                                product.fullDescription,
+                                style: AppTypography.body.copyWith(
+                                  color: AppColors.textMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 8),
+
+                // SECTION: Key Features
+                if (product.features.isNotEmpty)
+                  Container(
+                    color: Theme.of(context).cardColor,
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'KEY FEATURES',
+                          style: AppTypography.small.copyWith(
+                            color: const Color(0xFFF5A623),
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ...product.features.map((feature) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(top: 6),
+                                child: Icon(Icons.circle, size: 6, color: AppColors.primaryGreen),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  feature,
+                                  style: AppTypography.body.copyWith(
+                                    color: AppColors.textDark,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                      ],
+                    ),
+                  ),
+
+                if (product.features.isNotEmpty) const SizedBox(height: 8),
 
                 // SECTION 3 — Specifications card
                 Container(
@@ -347,109 +409,140 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                       if (product.availableSizes.isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SizedBox(
-                                width: 130,
-                                child: Text(
-                                  'Available Sizes',
-                                  style: AppTypography.body.copyWith(
-                                    color: AppColors.textLight,
-                                  ),
+                              Text(
+                                'Available Sizes',
+                                style: AppTypography.body.copyWith(
+                                  color: AppColors.textLight,
                                 ),
                               ),
-                              Expanded(
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 4,
-                                  children: product.availableSizes
-                                      .map(
-                                        (size) => Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white,
-                                            border: Border.all(
-                                              color: Colors.grey.shade300,
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              6,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            size,
-                                            style: AppTypography.caption
-                                                .copyWith(
-                                                  color: AppColors.textDark,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                                ),
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                children: product.availableSizes.map((size) {
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      border: Border.all(
+                                        color: AppColors.primaryGreen.withAlpha(50),
+                                        width: 1.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      size,
+                                      style: AppTypography.bodyMedium.copyWith(
+                                        color: AppColors.primaryGreen,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
                               ),
                             ],
                           ),
                         ),
 
-                      if (product.colors.isNotEmpty)
+                      if (product.colors.isNotEmpty || product.colorNames.isNotEmpty)
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SizedBox(
-                                width: 130,
-                                child: Text(
-                                  'Colors',
-                                  style: AppTypography.body.copyWith(
-                                    color: AppColors.textLight,
-                                  ),
+                              Text(
+                                'Available Colors',
+                                style: AppTypography.body.copyWith(
+                                  color: AppColors.textLight,
                                 ),
                               ),
-                              Expanded(
-                                child: Wrap(
-                                  spacing: 8,
-                                  children: product.colors.map((colorStr) {
-                                    int? colorValue;
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 10,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  // Visual Circles
+                                  ...product.colors.map((colorStr) {
+                                    final trimmed = colorStr.trim();
+                                    Color? color;
+                                    
                                     try {
-                                      if (colorStr.startsWith('#')) {
-                                        colorValue = int.parse(
-                                          colorStr.replaceFirst('#', '0xFF'),
-                                        );
-                                      } else {
-                                        colorValue = int.tryParse(colorStr);
+                                      if (trimmed.startsWith('#')) {
+                                        color = Color(int.parse(trimmed.replaceFirst('#', '0xFF')));
+                                      } else if (trimmed.startsWith('0x')) {
+                                        color = Color(int.parse(trimmed));
+                                      } else if (trimmed.length == 6 && RegExp(r'^[0-9a-fA-F]{6}$').hasMatch(trimmed)) {
+                                        color = Color(int.parse('0xFF$trimmed'));
+                                      } else if (trimmed.length == 8 && RegExp(r'^[0-9a-fA-F]{8}$').hasMatch(trimmed)) {
+                                        color = Color(int.parse('0x$trimmed'));
+                                      } else if (int.tryParse(trimmed) != null) {
+                                        // Handle raw decimal strings like "4294967295"
+                                        color = Color(int.parse(trimmed));
                                       }
                                     } catch (_) {}
 
-                                    return Container(
-                                      width: 22,
-                                      height: 22,
-                                      decoration: BoxDecoration(
-                                        color: colorValue != null
-                                            ? Color(colorValue)
-                                            : Colors.grey,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Colors.grey.shade200,
-                                          width: 1.5,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withAlpha(10),
-                                            blurRadius: 2,
-                                            spreadRadius: 0.5,
+                                    if (color != null) {
+                                      return Container(
+                                        width: 30,
+                                        height: 30,
+                                        decoration: BoxDecoration(
+                                          color: color,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: Colors.grey.shade300,
+                                            width: 1.5,
                                           ),
-                                        ],
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withAlpha(15),
+                                              blurRadius: 3,
+                                              offset: const Offset(0, 1),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    } else {
+                                      // If it's not a color value, it might be a name that ended up in the colors list
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade100,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: Colors.grey.shade300),
+                                        ),
+                                        child: Text(
+                                          trimmed,
+                                          style: AppTypography.small.copyWith(fontWeight: FontWeight.w600),
+                                        ),
+                                      );
+                                    }
+                                  }),
+                                  
+                                  // Explicit Color Names
+                                  ...product.colorNames.map((name) => Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F8E9),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: const Color(0xFFDCEDC8)),
+                                    ),
+                                    child: Text(
+                                      name,
+                                      style: AppTypography.small.copyWith(
+                                        color: const Color(0xFF388E3C),
+                                        fontWeight: FontWeight.bold,
                                       ),
-                                    );
-                                  }).toList(),
-                                ),
+                                    ),
+                                  )),
+                                ],
                               ),
                             ],
                           ),

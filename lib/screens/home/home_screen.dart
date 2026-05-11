@@ -16,6 +16,8 @@ import '../../models/order.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../widgets/cards/product_card.dart';
 import '../../widgets/notification_bell.dart';
+import '../../widgets/common/shimmer_loading.dart';
+import '../../widgets/common/tap_effect.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -26,6 +28,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  String _selectedCategoryTab = 'All';
+
   @override
   void initState() {
     super.initState();
@@ -227,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   },
                 ),
 
-                const SizedBox(height: 24),
+
 
                 // Popular Categories
                 _SectionHeader(
@@ -235,73 +239,30 @@ class _HomeScreenState extends State<HomeScreen> {
                     onViewAll: () => context.push('/categories')),
                 const SizedBox(height: 10),
                 if (categoryProvider.isLoading)
-                  const Center(child: CircularProgressIndicator())
+                  const SizedBox(height: 120, child: CategoryShimmer())
                 else
-                  SizedBox(
-                    height: 120,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: categoryProvider.allCategories.length,
-                      itemBuilder: (context, index) {
-                        final cat = categoryProvider.allCategories[index];
-                        return GestureDetector(
-                          onTap: () => context.push('/products',
-                              extra: {'categoryName': cat.name}),
-                          child: Container(
-                            width: 130,
-                            margin: const EdgeInsets.only(right: 12),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              image: DecorationImage(
-                                image: NetworkImage(cat.image),
-                                fit: BoxFit.cover,
-                              ),
+                  AnimationLimiter(
+                    child: SizedBox(
+                      height: 120,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: categoryProvider.allCategories.length,
+                        itemBuilder: (context, index) {
+                          final cat = categoryProvider.allCategories[index];
+                          return AnimationConfiguration.staggeredList(
+                            position: index,
+                            duration: const Duration(milliseconds: 375),
+                            child: FadeInAnimation(
+                              child: _buildCategoryCard(context, cat),
                             ),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [
-                                    Colors.transparent,
-                                    Colors.black.withAlpha(180)
-                                  ],
-                                ),
-                              ),
-                              padding: const EdgeInsets.all(10),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Text(cat.icon,
-                                      style: const TextStyle(fontSize: 22)),
-                                  Text(
-                                    cat.name,
-                                    maxLines: 2,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                  Text(
-                                    '${cat.productCount} products',
-                                    style: TextStyle(
-                                        color: Colors.white.withAlpha(180),
-                                        fontSize: 10),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
 
-                const SizedBox(height: 20),
-
+                const SizedBox(height: 24),
 
 
                 // Trending Products
@@ -309,26 +270,39 @@ class _HomeScreenState extends State<HomeScreen> {
                     title: 'Trending Products',
                     onViewAll: () => context.push('/products',
                         extra: {'categoryName': 'All Products'})),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      mainAxisExtent: 300,
+                if (productProvider.isLoading)
+                  const ProductShimmer()
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: AnimationLimiter(
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                          mainAxisExtent: 300,
+                        ),
+                        itemCount: productProvider.products.take(4).length,
+                        itemBuilder: (context, index) {
+                          return AnimationConfiguration.staggeredGrid(
+                            position: index,
+                            columnCount: 2,
+                            duration: const Duration(milliseconds: 375),
+                            child: ScaleAnimation(
+                              child: FadeInAnimation(
+                                child: ProductCard(
+                                    product: productProvider.products[index]),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                    itemCount: productProvider.products.take(4).length,
-                    itemBuilder: (context, index) {
-                      return ProductCard(
-                          product: productProvider.products[index]);
-                    },
                   ),
-                ),
 
                 const SizedBox(height: 30),
               ],
@@ -341,13 +315,68 @@ class _HomeScreenState extends State<HomeScreen> {
 
   String _buyerTypeLabel(String type) {
     switch (type) {
-      case 'business':
+      case 'individual':
+        return 'Personal';
+      case 'commercial':
         return 'Business';
-      case 'bulk':
-        return 'Bulk/Export';
       default:
-        return 'Individual';
+        return 'Standard';
     }
+  }
+
+  Widget _buildCategoryCard(BuildContext context, dynamic cat) {
+    return AppTapEffect(
+      onTap: () => context.push('/products', extra: {'categoryName': cat.name}),
+      child: Container(
+        width: 130,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          image: DecorationImage(
+            image: NetworkImage(cat.image),
+            fit: BoxFit.cover,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(15),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.transparent, Colors.black.withAlpha(180)],
+            ),
+          ),
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(cat.icon, style: const TextStyle(fontSize: 22)),
+              Text(
+                cat.name,
+                maxLines: 2,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600),
+              ),
+              Text(
+                '${cat.productCount} products',
+                style: TextStyle(
+                    color: Colors.white.withAlpha(180), fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildProjectOverview(BuildContext context, OrderProvider orderProvider,
@@ -552,7 +581,7 @@ class _QuickAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: GestureDetector(
+      child: AppTapEffect(
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),

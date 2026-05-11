@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_typography.dart';
 import '../../models/product.dart';
 import '../common/verified_badge.dart';
+import '../common/tap_effect.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -11,7 +12,7 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTapEffect(
       onTap: () => context.push('/product/${product.id}'),
       child: Container(
         decoration: BoxDecoration(

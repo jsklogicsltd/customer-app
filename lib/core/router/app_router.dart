@@ -26,6 +26,7 @@ import '../../screens/custom_request/custom_request_step1_screen.dart';
 import '../../screens/custom_request/custom_request_step2_screen.dart';
 import '../../screens/custom_request/custom_request_step3_screen.dart';
 import '../../screens/custom_request/custom_request_step4_screen.dart';
+import '../../screens/custom_request/custom_request_step5_screen.dart';
 import '../../screens/custom_request/request_submitted_screen.dart';
 import '../../screens/custom_request/custom_request_status_screen.dart';
 import '../../screens/custom_request/quote_accept_confirm_screen.dart';
@@ -206,6 +207,9 @@ class AppRouter {
         GoRoute(
             path: '/custom-request/step4',
             builder: (_, __) => const CustomRequestStep4Screen()),
+        GoRoute(
+            path: '/custom-request/step5',
+            builder: (_, __) => const CustomRequestStep5Screen()),
         GoRoute(
             path: '/custom-request/submitted',
             builder: (_, __) => const RequestSubmittedScreen()),

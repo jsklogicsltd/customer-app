@@ -8,6 +8,9 @@ import '../../providers/product_provider.dart';
 import '../../widgets/cards/product_card.dart';
 import '../../widgets/common/empty_state.dart';
 
+import '../../widgets/common/shimmer_loading.dart';
+import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
+
 class ProductListScreen extends StatefulWidget {
   final String categoryName;
   final String? subCategory;
@@ -31,49 +34,37 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   @override
   void dispose() {
+    // ignore: use_build_context_synchronously
     context.read<ProductProvider>().clearFilters();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-
-    final query = widget.categoryName == 'All Products'
-        ? FirebaseFirestore.instance.collection('products')
-        : FirebaseFirestore.instance
-            .collection('products')
-            .where('category', isEqualTo: widget.categoryName);
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: query.snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return Consumer<ProductProvider>(
+      builder: (context, productProvider, _) {
+        if (productProvider.isLoading && productProvider.products.isEmpty) {
+          return Scaffold(
+            appBar: AppBar(title: Text(widget.categoryName)),
+            body: const ProductShimmer(),
+          );
         }
 
-        if (snapshot.hasError) {
-          return Scaffold(body: Center(child: Text('Error: ${snapshot.error}')));
+        List<Product> products;
+        if (widget.categoryName == 'All Products') {
+          products = List.from(productProvider.products);
+        } else {
+          products = productProvider.getProductsByCategory(widget.categoryName);
         }
 
-        final productDocs = snapshot.data?.docs ?? [];
-        List<Product> products = productDocs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          data['id'] = doc.id;
-          return Product.fromMap(data, doc.id);
-        }).toList();
 
-        // Further subcategory filter if any
-        if (widget.subCategory != null) {
-          products = products.where((p) => p.subCategory == widget.subCategory).toList();
-        }
-
-        // Apply sorting from productProvider if needed, but local sort is fine here
+        // Apply sorting
         switch (_sortBy) {
           case 'price_low':
-            products.sort((a, b) => a.pricePerUnit.compareTo(b.pricePerUnit));
+            products.sort((a, b) => a.unitPrice.compareTo(b.unitPrice));
             break;
           case 'price_high':
-            products.sort((a, b) => b.pricePerUnit.compareTo(a.pricePerUnit));
+            products.sort((a, b) => b.unitPrice.compareTo(a.unitPrice));
             break;
           case 'rating':
             products.sort((a, b) => b.rating.compareTo(a.rating));
@@ -132,16 +123,30 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     title: 'No Products Found',
                     subtitle: 'Try a different category or search',
                   )
-                : GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.72,
+                : AnimationLimiter(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        mainAxisExtent: 300,
+                      ),
+                      itemCount: products.length,
+                      itemBuilder: (context, index) {
+                        return AnimationConfiguration.staggeredGrid(
+                          position: index,
+                          columnCount: 2,
+                          duration: const Duration(milliseconds: 375),
+                          child: ScaleAnimation(
+                            child: FadeInAnimation(
+                              child: ProductCard(product: products[index]),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    itemCount: products.length,
-                    itemBuilder: (context, index) => ProductCard(product: products[index]),
                   ),
           ),
         ],

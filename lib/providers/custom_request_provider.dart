@@ -20,6 +20,9 @@ class CustomRequestProvider extends ChangeNotifier {
   StreamSubscription? _requestsSub;
 
   // ── Step 1: Product Selection ──────────────────────────────────────────
+  bool _isSubmitting = false;
+  bool get isSubmitting => _isSubmitting;
+
   String step1ProductName = '';
   String step1Category = '';
   String step1SubCategory = '';
@@ -40,6 +43,11 @@ class CustomRequestProvider extends ChangeNotifier {
   String step3Deadline = '';
   String step3DeliveryType = 'domestic';
   String step3Packaging = 'standard';
+  
+  // ── Step 4: Measurements ──────────────────────────────────────────────
+  String step4HomeLength = '';
+  String step4HomeWidth = '';
+  Map<String, String> step4CustomMeasurements = {};
 
   String? lastSubmittedId;
 
@@ -70,11 +78,15 @@ class CustomRequestProvider extends ChangeNotifier {
           
           _requests = list;
           _isLoading = false;
-          notifyListeners();
+          if (!_isSubmitting) {
+            notifyListeners();
+          }
         }, onError: (e) {
           debugPrint('Error in CustomRequestProvider listener: $e');
           _isLoading = false;
-          notifyListeners();
+          if (!_isSubmitting) {
+            notifyListeners();
+          }
         });
       } else {
         _requests = [];
@@ -114,10 +126,14 @@ class CustomRequestProvider extends ChangeNotifier {
     step3Deadline = '';
     step3DeliveryType = 'domestic';
     step3Packaging = 'standard';
+    step4HomeLength = '';
+    step4HomeWidth = '';
+    step4CustomMeasurements = {};
     if (notify) notifyListeners();
   }
 
   Future<String> submitRequest({required String customerName}) async {
+    _isSubmitting = true;
     final user = _auth.currentUser;
     if (user == null) throw 'User must be logged in to submit a request';
 
@@ -158,6 +174,11 @@ class CustomRequestProvider extends ChangeNotifier {
         'deadline': step3Deadline,
         'deliveryType': step3DeliveryType,
         'packaging': step3Packaging,
+        'measurements': {
+          'homeLength': step4HomeLength,
+          'homeWidth': step4HomeWidth,
+          'custom': step4CustomMeasurements,
+        },
         'status': 'pending',
         'submittedDate': DateTime.now().toIso8601String(),
         'createdAt': FieldValue.serverTimestamp(),
@@ -202,16 +223,18 @@ class CustomRequestProvider extends ChangeNotifier {
       // StatefulShellRoute keeps HomeScreen alive (inactive) and
       // notifyListeners() on an inactive element throws a lifecycle assertion.
       clearForm(notify: false);
+      _isSubmitting = false;
       return docRef.id;
 
     } catch (e) {
+      _isSubmitting = false;
       rethrow;
     }
   }
 
-  void setLastSubmittedId(String id) {
+  void setLastSubmittedId(String id, {bool notify = true}) {
     lastSubmittedId = id;
-    notifyListeners();
+    if (notify) notifyListeners();
   }
 
   Future<void> acceptQuote(String requestId, String orderId, {String? customerName}) async {
