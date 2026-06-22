@@ -2,7 +2,7 @@ name: Flutter APK Build
 
 on:
   push:
-    branches: [main]  # agar tera branch 'master' hai to woh likh
+    branches: [main]
 
 jobs:
   build:
@@ -25,6 +25,12 @@ jobs:
       
       - name: Install Dependencies
         run: flutter pub get
+      
+      # ✅ Gradle memory fix
+      - name: Set Gradle JVM Args
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=512m" >> ~/.gradle/gradle.properties
       
       - name: Build Release APK
         run: flutter build apk --release
